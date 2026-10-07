@@ -1,0 +1,25 @@
+{
+  "package": "AI_OS_Core_Implementation_Prompts_0_6_1",
+  "spec_version": "0.6.1",
+  "spec_sha256": "d98f9a21c2de1df9b703350acf3434dbf597d13f73fc4bc2a02d78c48793eca8",
+  "prompt_count": 17,
+  "prompts": [
+    "P00_PRE_P01_DOCUMENTATION.md",
+    "P01_CORE_M0_FOUNDATION.md",
+    "P02_CORE_POLICY_APPROVAL_SECURITY.md",
+    "P03_BROKER_MODEL_DRIFT.md",
+    "P04_ATHENA.md",
+    "P05_AGORA.md",
+    "P06_GESTION_TAREAS_IA.md",
+    "P07_KNOWLEDGE_ORCHESTRATOR.md",
+    "P08_CHATYGPT.md",
+    "P09_OPTIONAL_INTEGRATIONS.md",
+    "P10A_M2_MINIMAL_E2E.md",
+    "P10B_M2_CONTEXTUAL_E2E.md",
+    "P11_M3_AUTO_CERTIFICATION.md",
+    "P12_M3_CONTEXT_ENGINE.md",
+    "P13_M4_POLICY_ENGINE.md",
+    "P14_M5_TYPED_PLANNER.md",
+    "P15_M6_CONDITIONAL_AUTONOMY.md"
+  ]
+}

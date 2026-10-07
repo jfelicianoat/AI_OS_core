@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Manual de uso · AI OS Core 0.2.0</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm;
+    @bottom-center { content: "AI OS Core 0.2.0 · Manual de uso · página " counter(page); font: 8pt "Segoe UI", sans-serif; color: #777; } }
+  :root { --ink:#1d2330; --muted:#5b6475; --accent:#1f5fa8; --accent-soft:#e8f0fa; --ok:#1d7a46; --warn:#a15c00; --bad:#b3261e; --line:#d8dde6; --code:#f4f6f9; }
+  html { font-size: 10pt; }
+  body { font-family: "Segoe UI", "Calibri", sans-serif; color: var(--ink); line-height: 1.5; margin: 0; background: #fff; }
+  h1, h2, h3, h4 { font-family: "Segoe UI Semibold", "Segoe UI", sans-serif; line-height: 1.2; }
+  h1 { font-size: 22pt; margin: 0 0 6pt; }
+  h2 { font-size: 15pt; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 3pt; margin: 22pt 0 8pt; page-break-after: avoid; }
+  h2.newpage { page-break-before: always; margin-top: 0; }
+  h3 { font-size: 12pt; margin: 14pt 0 5pt; page-break-after: avoid; }
+  h4 { font-size: 10.5pt; margin: 10pt 0 4pt; color: var(--muted); page-break-after: avoid; }
+  p { margin: 0 0 6pt; }
+  ul, ol { margin: 0 0 7pt; padding-left: 16pt; }
+  li { margin-bottom: 2pt; }
+  code { font-family: "Cascadia Mono", "Consolas", monospace; font-size: 8.6pt; background: var(--code); padding: 0 2pt; border-radius: 2px; }
+  pre { font-family: "Cascadia Mono", "Consolas", monospace; font-size: 8.2pt; background: var(--code); border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 6pt 8pt; margin: 4pt 0 8pt; white-space: pre-wrap; word-break: break-word; page-break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 4pt 0 10pt; font-size: 9pt; page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th { background: var(--accent-soft); text-align: left; font-weight: 600; }
+  th, td { border: 1px solid var(--line); padding: 3pt 5pt; vertical-align: top; }
+  .note { border: 1px solid var(--line); border-left: 4px solid var(--accent); background: #fafbfd; padding: 6pt 9pt; margin: 6pt 0 10pt; page-break-inside: avoid; }
+  .warn { border-left-color: var(--warn); background: #fff8ee; }
+  .bad { border-left-color: var(--bad); background: #fdf1f0; }
+  .ok { border-left-color: var(--ok); background: #f0f8f3; }
+  .note b:first-child { display: block; margin-bottom: 2pt; }
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+  .cover .kicker { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 10pt; }
+  .cover h1 { font-size: 34pt; margin: 6pt 0 10pt; }
+  .cover .sub { font-size: 13pt; color: var(--muted); max-width: 140mm; }
+  .cover .meta { margin-top: 40pt; font-size: 10pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8pt; }
+  .toc ol { columns: 2; column-gap: 14mm; font-size: 10pt; }
+  .toc li { break-inside: avoid; }
+  .flow { counter-reset: step; list-style: none; padding-left: 0; }
+  .flow > li { counter-increment: step; position: relative; padding-left: 22pt; margin-bottom: 4pt; }
+  .flow > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 15pt; height: 15pt; border-radius: 50%; background: var(--accent); color: #fff; font-size: 8pt; font-weight: 700; text-align: center; line-height: 15pt; }
+  .pill { display: inline-block; font-size: 7.6pt; font-weight: 700; padding: 0 4pt; border-radius: 3px; color: #fff; vertical-align: 1px; font-family: "Cascadia Mono", Consolas, monospace; }
+  .get { background: #1d7a46; } .post { background: #1f5fa8; } .put { background: #7a4fa8; } .patch { background: #a15c00; }
+  .arch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6pt; margin: 6pt 0 10pt; }
+  .arch div { border: 1px solid var(--line); border-radius: 4px; padding: 6pt; background: #fafbfd; font-size: 8.8pt; }
+  .arch div b { display: block; color: var(--accent); margin-bottom: 2pt; }
+  .small { font-size: 8.6pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="kicker">Plataforma AI OS · TFM</div>
+  <h1>AI OS Core</h1>
+  <div class="sub">Manual de uso del plano de control: qué es, para qué sirve, cómo se arranca y todos los flujos que ofrece su API, con ejemplos listos para copiar.</div>
+  <div class="meta">
+    Versión del software: <b>0.2.0</b> · Fecha: 7 de octubre de 2026<br>
+    Verificado contra: AI Broker (contrato 2.11) en el PC IA y tablero de Agora 0.2.0 en este equipo<br>
+    Suite automática: 51 pruebas en verde · Recorrido E2E real: 29 comprobaciones superadas
+  </div>
+</section>
+
+<section class="toc">
+  <h2 style="margin-top:0">Contenido</h2>
+  <ol>
+    <li>Qué es AI OS Core y para qué sirve</li>
+    <li>Arquitectura en una página</li>
+    <li>Instalación y arranque</li>
+    <li>Convenciones de la API</li>
+    <li>Flujo: comprobar que el servicio está vivo</li>
+    <li>Flujo: metas, objetivos y auditoría</li>
+    <li>Flujo: registro de servicios y capacidades</li>
+    <li>Flujo: políticas y decisión de autorización</li>
+    <li>Flujo: aprobaciones humanas</li>
+    <li>Flujo: presupuesto y reservas</li>
+    <li>Flujo: bandeja de eventos y proyección canónica</li>
+    <li>Flujo: restore y recibos de operación</li>
+    <li>Flujo: grafo de recursos e identidades</li>
+    <li>Flujo: proyección de certificaciones</li>
+    <li>Flujo: paquetes de contexto</li>
+    <li>Flujo: planificador tipado y autonomía</li>
+    <li>Idempotencia de peticiones</li>
+    <li>Recorrido completo con el Broker y Agora</li>
+    <li>Configuración</li>
+    <li>Pruebas y verificación</li>
+    <li>Errores frecuentes y cómo resolverlos</li>
+    <li>Límites conocidos</li>
+    <li>Referencia rápida de endpoints</li>
+    <li>Glosario</li>
+  </ol>
+</section>
+
+<h2 class="newpage">1. Qué es AI OS Core y para qué sirve</h2>
+<p><b>AI OS Core</b> es el <b>plano de control</b> de la plataforma AI OS: un servicio REST local (FastAPI + SQLite) que no ejecuta modelos ni agentes, sino que <b>decide, registra y vigila</b> lo que hacen los demás componentes del ecosistema del TFM: AI Broker, Model Drift, Athena, Agora, Gestión Tareas IA, Knowledge Orchestrator y ChatyGPT.</p>
+<p>Su papel se resume en cinco verbos:</p>
+<ul>
+  <li><b>Orientar</b>: es la autoridad canónica de las <i>metas</i> (Goals) y sus <i>objetivos</i>.</li>
+  <li><b>Conocer</b>: mantiene el catálogo de servicios federados, sus capacidades, un grafo ligero de recursos y la correspondencia entre identidades globales y los ids nativos de cada sistema.</li>
+  <li><b>Autorizar</b>: evalúa políticas con lógica de tres valores, gestiona aprobaciones humanas de uso limitado y reservas de presupuesto, y combina techos de autonomía antes de dejar que un plan se despache.</li>
+  <li><b>Recordar</b>: recibe eventos de los demás servicios con garantías de orden y deduplicación, guarda la última foto válida de cada recurso, aparta a cuarentena lo contradictorio y conserva paquetes de contexto inmutables.</li>
+  <li><b>Recuperar</b>: tras un corte, dice si una operación debe reenviarse, seguirse o reconciliarse a mano, para no duplicar efectos.</li>
+</ul>
+<div class="note"><b>Idea clave</b>Core es <i>determinista</i>: con las mismas entradas da siempre la misma decisión, y deja traza de cada una. Los servicios que hacen el trabajo (Broker, Agora…) le consultan antes de actuar y le informan después.</div>
+
+<h3>Cuándo lo usas</h3>
+<table>
+  <tr><th>Situación</th><th>Qué haces en Core</th></tr>
+  <tr><td>Quieres que una tarea de IA cuelgue de un propósito explícito</td><td>Creas una meta y sus objetivos (§6)</td></tr>
+  <tr><td>Un servicio nuevo se une al ecosistema</td><td>Lo registras con sus capacidades; Core rechaza URLs peligrosas (§7)</td></tr>
+  <tr><td>Antes de lanzar algo con coste o datos sensibles</td><td>Evalúas políticas (§8), pides aprobación (§9) y reservas presupuesto (§10)</td></tr>
+  <tr><td>Un servicio cambia el estado de algo</td><td>Envía un evento a la bandeja; Core mantiene la versión canónica (§11)</td></tr>
+  <tr><td>Se cortó la luz a mitad de una operación</td><td>Consultas el estado de la operación antes de reenviar (§12)</td></tr>
+  <tr><td>Un planificador propone varias tareas</td><td>Registras la propuesta y pides la decisión de despacho con los techos de autonomía (§16)</td></tr>
+</table>
+
+<h2>2. Arquitectura en una página</h2>
+<div class="arch">
+  <div><b>API (FastAPI)</b><code>api/routes/*</code>: un router por dominio, validación Pydantic, formato de error único y middleware de idempotencia.</div>
+  <div><b>Aplicación</b><code>application/*_service.py</code>: casos de uso (crear meta, evaluar políticas, decidir plan…).</div>
+  <div><b>Dominio</b><code>domain/*</code>: entidades puras e invariantes (precedencia de decisiones, lógica ternaria, niveles A0–A5).</div>
+  <div><b>Repositorios</b><code>infrastructure/db/repositories</code>: SQL explícito, transacciones <code>BEGIN IMMEDIATE</code>.</div>
+  <div><b>SQLite WAL</b>Un único fichero, <code>synchronous=FULL</code>, migraciones sólo hacia delante, aplicadas al arrancar.</div>
+  <div><b>Seguridad de red</b><code>infrastructure/http/security_client.py</code>: validación SSRF y allowlist de hosts.</div>
+</div>
+<p>Core <b>no hace llamadas salientes</b>: el registro de un servicio valida su URL pero no la visita. Los demás servicios hablan con Core y no al revés. Esto lo mantiene arrancable “con cero dependencias”, como exige la especificación (P01).</p>
+
+<h2 class="newpage">3. Instalación y arranque</h2>
+<h3>Requisitos</h3>
+<ul>
+  <li>Python 3.11 o superior (verificado con el Python 3.14 del sistema).</li>
+  <li>Paquetes: <code>fastapi</code>, <code>uvicorn[standard]</code>, <code>pydantic</code> v2, <code>pydantic-settings</code>; para pruebas, <code>pytest</code> y <code>httpx</code>.</li>
+</ul>
+<pre>cd "D:\Desarrollo\Proyectos TFM\AI_OS_core"
+python -m pip install -e ".[dev]"</pre>
+
+<h3>Con el lanzador (recomendado)</h3>
+<p>Doble clic en <code>start.bat</code> (o <code>run.bat</code>) abre un menú. Cada opción también acepta un argumento para usarse sin menú:</p>
+<table>
+  <tr><th>Opción</th><th>Argumento</th><th>Qué hace</th></tr>
+  <tr><td>1</td><td><code>app</code> / <code>api</code></td><td>Arranca el servicio en <code>http://127.0.0.1:8000</code> con recarga automática</td></tr>
+  <tr><td>2</td><td><code>tests</code></td><td>Ejecuta la suite completa con pytest (si falla, reintenta con unittest)</td></tr>
+  <tr><td>3</td><td><code>migrate</code></td><td>Aplica migraciones pendientes a la base real y lista las versiones aplicadas</td></tr>
+  <tr><td>4</td><td><code>smoke</code></td><td>Pruebas de humo de los endpoints básicos (en una base temporal)</td></tr>
+  <tr><td>5</td><td><code>docs</code></td><td>Abre Swagger UI en el navegador y arranca el servicio</td></tr>
+  <tr><td>6</td><td><code>exit</code></td><td>Sale</td></tr>
+</table>
+<pre>run.bat app        :: servicio
+run.bat tests      :: suite completa
+run.bat migrate    :: "Migraciones completadas. Versiones aplicadas: []" si ya está al día</pre>
+
+<h3>A mano</h3>
+<pre>set PYTHONPATH=D:\Desarrollo\Proyectos TFM\AI_OS_core\src
+python -m uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8000</pre>
+<p>Al arrancar, Core crea la carpeta de datos si no existe y aplica las migraciones antes de aceptar peticiones. La documentación interactiva queda en <code>http://127.0.0.1:8000/docs</code> (Swagger) y <code>/redoc</code>.</p>
+<div class="note"><b>¿Dónde están mis datos?</b><code>%LOCALAPPDATA%\AIOSCore\data\ai_os_core.db</code> (más los ficheros <code>-wal</code> y <code>-shm</code>). Para trabajar con otra base, define <code>AI_OS_DB_PATH</code> antes de arrancar. Para copiar la base con el servicio en marcha, detenlo primero o copia los tres ficheros juntos.</div>
+
+<h2 class="newpage">4. Convenciones de la API</h2>
+<ul>
+  <li>Prefijo común <code>/api/v1</code> salvo <code>/health</code> y <code>/ready</code>. Cuerpos y respuestas en JSON UTF-8.</li>
+  <li>Las fechas son ISO 8601. Core las guarda en UTC; acepta <code>Z</code> o desfases (<code>+02:00</code>) y rechaza textos que no sean fechas.</li>
+  <li>Si no das un identificador, Core lo genera con prefijo: <code>goal_…</code>, <code>obj_…</code>, <code>resv_…</code>, <code>ctx_…</code>, <code>plan_…</code>.</li>
+  <li>Los listados paginados aceptan <code>limit</code> (1–100, por defecto 50) y <code>offset</code>, y devuelven <code>{items, total_returned, limit, offset}</code> con orden estable.</li>
+</ul>
+<h3>Códigos de estado</h3>
+<table>
+  <tr><th>Código</th><th>Significado en Core</th></tr>
+  <tr><td>200 / 201</td><td>Lectura correcta / recurso creado</td></tr>
+  <tr><td>400</td><td>Valor inválido: estado, fecha, operador, nivel, URL bloqueada por SSRF, referencia a un padre inexistente</td></tr>
+  <tr><td>403</td><td>Denegado: aprobación caducada, revocada, agotada o de otro digest; principal sin scope o sin clearance suficiente</td></tr>
+  <tr><td>404</td><td>No existe lo que pides</td></tr>
+  <tr><td>409</td><td>Choca con lo ya registrado: id repetido, revisión obsoleta, saldo insuficiente, reserva ya consumida, clave de idempotencia reutilizada o en curso</td></tr>
+  <tr><td>422</td><td>Falta un campo obligatorio o tiene el tipo equivocado (validación del esquema)</td></tr>
+</table>
+<h3>Formato de error</h3>
+<pre>{
+  "error":  { "type": "Conflict", "message": "Goal 'g1' ya existe.", "details": {} },
+  "detail": "…"        // sólo en errores HTTP genéricos, por compatibilidad
+}</pre>
+<p>Los ejemplos de este manual usan <code>curl</code>. En PowerShell, sustituye por <code>Invoke-RestMethod -Method Post -Uri … -ContentType 'application/json' -Body '…'</code>, o usa Swagger UI.</p>
+
+<h2>5. Flujo: comprobar que el servicio está vivo</h2>
+<p><span class="pill get">GET</span> <code>/health</code> responde siempre que el proceso viva; <span class="pill get">GET</span> <code>/ready</code> además abre la base y devuelve la versión de esquema (503 si no puede).</p>
+<pre>curl http://127.0.0.1:8000/health
+{"status":"healthy","service":"ai_os_core","version":"0.2.0"}
+
+curl http://127.0.0.1:8000/ready
+{"status":"ready","service":"ai_os_core","schema_version":2}</pre>
+
+<h2 class="newpage">6. Flujo: metas, objetivos y auditoría</h2>
+<p>Una <b>meta</b> (Goal) es el “para qué” de alto nivel; los <b>objetivos</b> la descomponen. Toda tarea o plan del ecosistema debería poder colgarse de una meta. Cada cambio de estado incrementa la <code>revision</code> y queda auditado.</p>
+<p>Estados válidos: <code>pending</code>, <code>active</code> (inicial), <code>paused</code>, <code>completed</code>, <code>failed</code>, <code>cancelled</code>.</p>
+<ol class="flow">
+  <li><b>Crear la meta</b> <span class="pill post">POST</span> <code>/api/v1/goals</code>
+<pre>curl -X POST http://127.0.0.1:8000/api/v1/goals -H "Content-Type: application/json" -d "{\"goal_id\":\"goal_tfm\",\"title\":\"Entregar el TFM\",\"description\":\"Memoria y defensa\",\"owner_service\":\"gestion_tareas\"}"</pre>
+  Campos: <code>title</code> y <code>description</code> obligatorios; <code>goal_id</code>, <code>owner_service</code> (por defecto <code>ai_os_core</code>) y <code>parent_goal_id</code> opcionales. Repetir un <code>goal_id</code> existente da <b>409</b> (nunca sobrescribe); un padre inexistente da <b>400</b>.</li>
+  <li><b>Añadir objetivos</b> <span class="pill post">POST</span> <code>/api/v1/objectives</code> con <code>{"goal_id":"goal_tfm","title":"Redactar capítulo 3"}</code>.</li>
+  <li><b>Consultar</b>: <span class="pill get">GET</span> <code>/api/v1/goals/{id}</code>, <span class="pill get">GET</span> <code>/api/v1/goals?limit=50&amp;offset=0</code>, <span class="pill get">GET</span> <code>/api/v1/goals/{id}/objectives</code>, <span class="pill get">GET</span> <code>/api/v1/objectives/{id}</code>.</li>
+  <li><b>Cambiar estado</b> <span class="pill patch">PATCH</span> <code>/api/v1/goals/{id}/status</code> o <code>/api/v1/objectives/{id}/status</code> con <code>{"status":"completed","principal_id":"usuario"}</code>. La revisión sube en uno.</li>
+  <li><b>Ver la traza</b> <span class="pill get">GET</span> <code>/api/v1/goals/{id}/audit</code>: lista append-only de creación y cambios, con quién y cuándo.</li>
+</ol>
+
+<h2>7. Flujo: registro de servicios y capacidades</h2>
+<p>Core mantiene el catálogo de servicios del ecosistema y de lo que cada uno sabe hacer. Al registrar, valida la URL contra ataques SSRF; no la visita.</p>
+<ol class="flow">
+  <li><b>Registrar (o actualizar) un servicio</b> <span class="pill post">POST</span> <code>/api/v1/services</code>
+<pre>{ "service_id": "ai_broker", "name": "AI Broker", "base_url": "http://192.168.1.52:8765",
+  "version": "2.11", "health_status": "healthy", "capabilities": ["llm.task"],
+  "metadata": { "auth_header": "X-Admin-Token" } }</pre>
+  Repetir el mismo <code>service_id</code> actualiza el registro (es idempotente). <code>health_status</code>: <code>healthy</code>, <code>degraded</code>, <code>down</code>, <code>unknown</code>.</li>
+  <li><b>Declarar capacidades</b> <span class="pill post">POST</span> <code>/api/v1/capabilities</code> con <code>capability_id</code>, <code>name</code>, <code>description</code>, <code>provider_service_id</code> y opcionalmente <code>input_schema</code>/<code>output_schema</code>. El proveedor debe estar registrado (si no, 400).</li>
+  <li><b>Consultar</b>: <span class="pill get">GET</span> <code>/api/v1/services</code>, <code>/api/v1/services/{id}</code>, <code>/api/v1/capabilities/{id}</code>.</li>
+</ol>
+<h4>Qué URLs acepta el registro</h4>
+<table>
+  <tr><th>Se admite</th><th>Se rechaza (400)</th></tr>
+  <tr><td>
+    <code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code> y cualquier loopback<br>
+    Redes privadas de la LAN (<code>192.168.x.x</code>, <code>10.x</code>, <code>172.16–31.x</code>) mientras <code>AI_OS_ALLOW_PRIVATE_NETS=true</code><br>
+    Nombres DNS añadidos con <code>AI_OS_ALLOWED_HOSTS</code></td>
+  <td>Esquemas distintos de http/https (<code>file:</code>, <code>ftp:</code>…)<br>
+    Metadatos de nube (<code>169.254.169.254</code>) y todo link-local (<code>169.254.0.0/16</code>, <code>fe80::/10</code>), también disfrazados como IPv6 (<code>::ffff:169.254.169.254</code>)<br>
+    <code>0.0.0.0</code>, multicast y rangos reservados<br>
+    IPs públicas y nombres DNS fuera de la allowlist</td></tr>
+</table>
+
+<h2 class="newpage">8. Flujo: políticas y decisión de autorización</h2>
+<p>Una <b>política</b> dice: “en este <i>scope</i>, si se cumplen estas condiciones, la decisión es X”. Core evalúa todas las políticas habilitadas del scope (y las de scope <code>*</code>) contra un <b>contexto</b> y devuelve una decisión consolidada.</p>
+<h3>Lógica de tres valores</h3>
+<p>Cada condición da <code>TRUE</code>, <code>FALSE</code> o <code>UNKNOWN</code>. Un dato ausente, nulo o no comparable (un texto contra <code>greater_than</code>) es <code>UNKNOWN</code>: Core nunca adivina.</p>
+<table>
+  <tr><th>Operador</th><th>Uso</th><th>Ausente / null</th></tr>
+  <tr><td><code>exists</code></td><td>El campo está en el contexto (aunque sea null)</td><td>FALSE si ausente</td></tr>
+  <tr><td><code>equals</code>, <code>not_equals</code></td><td>Igualdad. <code>equals</code> con <code>value: null</code> pregunta “¿es null?”</td><td>UNKNOWN</td></tr>
+  <tr><td><code>greater_than</code>, <code>less_than</code>, <code>greater_or_equal</code>, <code>less_or_equal</code></td><td>Comparación numérica u ordenable</td><td>UNKNOWN</td></tr>
+  <tr><td><code>in</code></td><td>Pertenencia; <code>value</code> debe ser una lista</td><td>UNKNOWN</td></tr>
+</table>
+<p><code>condition_mode</code>: <code>all</code> (algún FALSE → FALSE; si no, algún UNKNOWN → UNKNOWN) o <code>any</code> (algún TRUE → TRUE; si no, algún UNKNOWN → UNKNOWN). Una política sin condiciones sólo es válida con <code>unconditional: true</code>. Operadores o modos desconocidos se rechazan al crear (400).</p>
+<h3>Combinación</h3>
+<ul>
+  <li>Precedencia estricta: <b>DENY &gt; REQUIRE_APPROVAL &gt; INDETERMINATE &gt; ALLOW</b>.</li>
+  <li>Sin ninguna política en el scope → <b>DENY</b> (denegar por defecto).</li>
+  <li>Una política restrictiva que no se puede evaluar aporta <b>INDETERMINATE</b>: un “DENY si coste &gt; 5” sin coste no queda tapado por un ALLOW.</li>
+  <li>Restricciones <code>max_*</code> se quedan con la más baja y <code>min_*</code> con la más alta; si un mínimo supera a su máximo → DENY. Las <code>obligations</code> se acumulan.</li>
+  <li><code>executable</code> sólo es <code>true</code> con ALLOW y sin incógnitas de seguridad (campos cuyo nombre contiene <i>security</i> o <i>auth</i>); una aprobación humana no resuelve esas incógnitas.</li>
+</ul>
+<ol class="flow">
+  <li><b>Crear políticas</b> <span class="pill post">POST</span> <code>/api/v1/policies</code>
+<pre>{ "policy_id": "pol_conf", "policy_key": "confidencial_requiere_aprobacion", "scope": "broker:invoke",
+  "decision_if_matched": "REQUIRE_APPROVAL",
+  "conditions": [ { "field": "data_classification", "operator": "in", "value": ["confidential","local_only"] } ] }
+
+{ "policy_id": "pol_cost", "policy_key": "coste_maximo", "scope": "broker:invoke",
+  "decision_if_matched": "DENY",
+  "conditions": [ { "field": "estimated_cost", "operator": "greater_than", "value": 5 } ] }
+
+{ "policy_id": "pol_base", "policy_key": "auditar_siempre", "scope": "broker:invoke",
+  "decision_if_matched": "ALLOW", "unconditional": true,
+  "obligations": ["audit_trace"], "constraints": { "max_output_tokens": 600 } }</pre>
+  Reenviar el mismo <code>policy_id</code> la actualiza. <code>enabled: false</code> la desactiva sin borrarla.</li>
+  <li><b>Evaluar</b> <span class="pill post">POST</span> <code>/api/v1/policies/evaluate</code>
+<pre>{ "scope": "broker:invoke", "principal_id": "chatygpt",
+  "context": { "data_classification": "internal", "estimated_cost": 0.5 } }
+→ { "authorization": "ALLOW", "constraints": {"max_output_tokens": 600},
+    "obligations": ["audit_trace"], "matched_policy_refs": ["pol_base"],
+    "unknown_inputs": [], "executable": true }</pre>
+  Con <code>confidential</code> el resultado es REQUIRE_APPROVAL; sin <code>estimated_cost</code>, INDETERMINATE con <code>unknown_inputs: ["estimated_cost"]</code>. Cada evaluación deja una traza de decisión con el hash del contexto.</li>
+  <li><b>Revisar</b> <span class="pill get">GET</span> <code>/api/v1/policies</code> o <code>/api/v1/policies?scope=broker:invoke</code>.</li>
+</ol>
+
+<h2 class="newpage">9. Flujo: aprobaciones humanas</h2>
+<p>Una <b>autorización</b> es un permiso concedido (normalmente por una persona) con un número máximo de usos, caducidad opcional y, si se quiere, ligado a una acción exacta mediante su digest. Es inmutable: no se edita, se revoca.</p>
+<ol class="flow">
+  <li><b>Conceder</b> <span class="pill post">POST</span> <code>/api/v1/approvals</code>
+<pre>{ "authorization_id": "auth_publicar_42", "scope": "broker:invoke", "max_uses": 1,
+  "expires_at": "2026-10-08T18:00:00+01:00", "expected_digest": "9f3c…", "granted_by": "usuario" }</pre>
+  <code>max_uses</code> ≥ 1. Con <code>expected_digest</code> la autorización es <i>exact_action</i>: sólo vale para la operación cuyo hash coincide. Sin él es <i>scoped</i>: vale para cualquier operación del scope.</li>
+  <li><b>Consumir un uso</b> justo antes de actuar <span class="pill post">POST</span> <code>/api/v1/approvals/use</code>
+<pre>{ "use_id": "use_1", "authorization_id": "auth_publicar_42",
+  "operation_id": "op_publicar_42", "operation_digest": "9f3c…" }
+→ {"status":"committed","use_id":"use_1"}</pre>
+  Reglas: caducada, revocada, agotada o digest distinto del aprobado → <b>403</b>. Repetir el mismo <code>operation_id</code> con el mismo digest es un reintento legítimo y <b>no gasta</b> otro uso; con distinto digest → <b>409</b>. Si dos operaciones compiten por el último uso, sólo una lo consigue (verificado con 10 peticiones simultáneas).</li>
+  <li><b>Ver el estado</b> <span class="pill get">GET</span> <code>/api/v1/approvals/{id}/status</code> → <code>status</code> (<code>active</code>, <code>consumed</code>, <code>expired</code>, <code>revoked</code>), <code>used_count</code>, <code>remaining_uses</code>.</li>
+  <li><b>Revocar</b> <span class="pill post">POST</span> <code>/api/v1/approvals/{id}/revoke</code> con <code>{"revoked_by":"usuario","reason":"…"}</code>. Revocar dos veces no cambia nada.</li>
+</ol>
+
+<h2>10. Flujo: presupuesto y reservas</h2>
+<p>Antes de una operación con coste se <b>reserva</b> saldo; al terminar se <b>consume</b> (o se <b>libera</b> si no se hizo). Así dos operaciones simultáneas no pueden gastar el mismo dinero.</p>
+<ol class="flow">
+  <li><b>Abrir cuenta</b> <span class="pill post">POST</span> <code>/api/v1/budget/accounts</code> con <code>{"account_id":"broker_cloud","balance":20}</code> (409 si ya existe).</li>
+  <li><b>Reservar</b> <span class="pill post">POST</span> <code>/api/v1/budget/reserve</code> con <code>{"account_id":"broker_cloud","amount":0.5,"reservation_id":"resv_1","expires_at":"…"}</code>. Saldo disponible insuficiente → <b>409</b>; cuenta inexistente → 404; <code>reservation_id</code> repetido → 409.</li>
+  <li><b>Consumir</b> <span class="pill post">POST</span> <code>/api/v1/budget/consume</code> con <code>{"reservation_id":"resv_1"}</code>: descuenta del saldo. Consumir dos veces → 409.</li>
+  <li><b>o Liberar</b> <span class="pill post">POST</span> <code>/api/v1/budget/release</code>: devuelve el importe al disponible. Liberar una consumida → 409; una inexistente → 404; dos veces → sin efecto.</li>
+  <li><b>Consultar</b>: <span class="pill get">GET</span> <code>/api/v1/budget/accounts/{id}</code> → <code>balance</code>, <code>reserved</code>, <code>available</code>; <span class="pill get">GET</span> <code>/api/v1/budget/reservations/{id}</code> → estado <code>reserved</code>, <code>consumed</code>, <code>released</code> o <code>expired</code>.</li>
+</ol>
+<div class="note"><b>Caducidad</b>Una reserva con <code>expires_at</code> vencido y sin consumir se marca <code>expired</code> y su importe vuelve al disponible la próxima vez que se reserva o consume en esa cuenta.</div>
+
+<h2 class="newpage">11. Flujo: bandeja de eventos y proyección canónica</h2>
+<p>Los servicios informan a Core de los cambios mediante <b>eventos</b>. Cada productor numera sus eventos por flujo (<code>producer_id</code> + <code>stream_id</code> + <code>stream_epoch</code>) con <code>source_sequence</code> consecutiva. Core guarda todos los eventos y mantiene la <b>proyección canónica</b> de cada recurso: el último <code>full_state</code> válido de mayor revisión.</p>
+<table>
+  <tr><th><code>event_type</code></th><th>Efecto</th></tr>
+  <tr><td><code>full_state</code></td><td>Foto completa del recurso. Es el único tipo que cambia la proyección canónica.</td></tr>
+  <tr><td><code>delta</code>, <code>audit</code>, <code>notification</code></td><td>Se guardan y cuentan para la secuencia, pero no cambian la proyección.</td></tr>
+</table>
+<ol class="flow">
+  <li><b>Enviar</b> <span class="pill post">POST</span> <code>/api/v1/events/inbox</code>
+<pre>{ "event_id": "ev_001", "producer_id": "ai_broker", "stream_id": "tasks", "stream_epoch": 1,
+  "source_sequence": 1, "event_type": "full_state", "resource_id": "broker_task:abc",
+  "resource_type": "broker_task", "revision": 2, "payload": {"status": "completed"},
+  "state_digest": "sha256-del-estado" }
+→ { "event_id": "ev_001", "accepted_in_canonical_projection": true,
+    "quarantine": false, "duplicate": false, "reason": null }</pre></li>
+  <li><b>Leer la versión vigente</b> <span class="pill get">GET</span> <code>/api/v1/events/canonical/{resource_id}</code> → revisión, payload, digest y fecha.</li>
+  <li><b>Revisar incidencias</b>: <span class="pill get">GET</span> <code>/api/v1/events/gaps</code> (saltos de secuencia sin resolver) y <span class="pill get">GET</span> <code>/api/v1/events/quarantine</code> (eventos apartados).</li>
+</ol>
+<h4>Qué pasa en cada caso</h4>
+<table>
+  <tr><th>Caso</th><th>Respuesta de Core</th></tr>
+  <tr><td>Reentrega del mismo <code>event_id</code> (reintento de red)</td><td>200 con <code>duplicate: true</code>; no se reprocesa.</td></tr>
+  <tr><td>Otro evento con una secuencia ya ocupada</td><td>409.</td></tr>
+  <tr><td>Salto de secuencia (llega la 5 tras la 1)</td><td>Se registra un REPLAY_GAP y el evento va a cuarentena (C05).</td></tr>
+  <tr><td>Dos <code>full_state</code> de la misma revisión con distinto <code>state_digest</code></td><td>El segundo va a cuarentena (C03).</td></tr>
+  <tr><td><code>full_state</code> tardío de revisión menor</td><td>Se guarda para auditoría pero la proyección no retrocede (C02).</td></tr>
+</table>
+
+<h2>12. Flujo: restore y recibos de operación</h2>
+<p>Tras una caída, la pregunta es “¿reenvío o no?”. Los receptores registran <b>recibos</b> del estado de cada operación y Core traduce ese estado en una acción recomendada.</p>
+<ol class="flow">
+  <li><b>El receptor informa</b> <span class="pill post">POST</span> <code>/api/v1/operations/receipts</code> con <code>{"operation_id":"op_42","receiver_service":"ai_broker","status":"in_progress","evidence":{"task_id":"task_…"}}</code>. Se puede reenviar con el estado nuevo.</li>
+  <li><b>Quien va a reenviar consulta</b> <span class="pill post">POST</span> <code>/api/v1/operations/status</code> con <code>{"operation_id":"op_42","target_service_id":"ai_broker"}</code>.</li>
+</ol>
+<table>
+  <tr><th>Estado del recibo</th><th><code>recommended_action</code></th><th>Qué hacer</th></tr>
+  <tr><td>sin recibo (<code>not_seen</code>)</td><td><code>retry_allowed</code></td><td>Reenviar con el mismo <code>operation_id</code>, tras revalidar política y aprobación</td></tr>
+  <tr><td><code>accepted</code>, <code>in_progress</code></td><td><code>follow_up_no_resend</code></td><td>No reenviar; seguir consultando</td></tr>
+  <tr><td><code>succeeded</code></td><td><code>reconstruct_state_no_resend</code></td><td>Reconstruir el estado local a partir del resultado</td></tr>
+  <tr><td><code>failed_terminal</code>, <code>cancelled</code></td><td><code>do_not_resend_without_new_decision</code></td><td>Sólo con una decisión/operación nueva</td></tr>
+  <tr><td><code>unknown</code></td><td><code>manual_reconciliation_required</code></td><td>Revisión humana</td></tr>
+</table>
+
+<h2 class="newpage">13. Flujo: grafo de recursos e identidades</h2>
+<p>El <b>grafo de recursos</b> es un mapa ligero de qué existe en el ecosistema y cómo se relaciona (una tarea “ejecutada por” un trabajo de Agora, un objetivo “cumplido por” una tarea del Broker). Los <b>identity bindings</b> traducen un id global de AI OS al id nativo de cada sistema.</p>
+<ol class="flow">
+  <li><b>Proyectar un recurso</b> <span class="pill put">PUT</span> <code>/api/v1/resources</code> con <code>{"resource_id":"task_77","resource_type":"task","owner_service":"gestion_tareas","revision":3,"data":{…}}</code>. El propietario no puede cambiar y la revisión no puede bajar (409 en ambos casos).</li>
+  <li><b>Relacionar</b> <span class="pill post">POST</span> <code>/api/v1/resources/relations</code> con <code>{"source_id":"obj_1","target_id":"task_77","relation_type":"fulfilled_by"}</code>. Ambos deben existir; repetir no duplica.</li>
+  <li><b>Consultar</b> <span class="pill get">GET</span> <code>/api/v1/resources/{id}</code>: el recurso y sus relaciones salientes.</li>
+  <li><b>Vincular identidades</b> <span class="pill put">PUT</span> <code>/api/v1/identity-bindings</code> con <code>{"global_id":"op_42","native_id":"task_9f2c","source_system":"ai_broker","adapter_revision":1}</code>; resolver con <span class="pill get">GET</span> <code>/api/v1/identity-bindings/{global_id}/{source_system}</code>. Una <code>adapter_revision</code> menor que la registrada → 409.</li>
+</ol>
+
+<h2>14. Flujo: proyección de certificaciones</h2>
+<p>Model Drift evalúa si un modelo está certificado para una capacidad. Core guarda una <b>proyección</b> de ese veredicto para poder consultarlo al decidir, sin llamar a Model Drift.</p>
+<ol class="flow">
+  <li><b>Registrar</b> <span class="pill post">POST</span> <code>/api/v1/certifications</code>
+<pre>{ "model_id": "gemma4:12b", "capability_id": "llm.task", "version": "1",
+  "source_system": "model_drift", "evaluation_verdict": "CERTIFIED",
+  "is_applicable": true, "revision": 5 }</pre>
+  Veredictos: <code>CERTIFIED</code>, <code>REJECTED</code>, <code>INDETERMINATE</code>, <code>EXPIRED</code>. Una revisión igual o mayor actualiza; una menor (llegada tarde) → <b>409</b> y la proyección no cambia.</li>
+  <li><b>Consultar</b> <span class="pill get">GET</span> <code>/api/v1/certifications</code> o <code>/api/v1/certifications/{model_id}/{capability_id}/{version}</code>.</li>
+</ol>
+
+<h2>15. Flujo: paquetes de contexto</h2>
+<p>Un <b>ContextPackage</b> fija, de forma inmutable, el contexto exacto con que se tomó una decisión o se lanzó una tarea, para poder reproducirlo después aunque las fuentes cambien. Su <code>snapshot_hash</code> es un SHA-256 determinista del contenido.</p>
+<ol class="flow">
+  <li><b>Crear</b> <span class="pill post">POST</span> <code>/api/v1/context/packages</code>
+<pre>{ "goal_id": "goal_tfm", "classification_level": "INTERNAL",
+  "resources": [ { "resource_id": "obj_1", "resource_type": "objective", "owner_service": "ai_os_core" } ],
+  "payload": { "prompt_digest": "9f3c…" },
+  "principal_id": "athena", "principal_role": "agent",
+  "principal_clearance": "INTERNAL", "principal_scopes": ["context:build"] }</pre>
+  Niveles: <code>PUBLIC</code> &lt; <code>INTERNAL</code> &lt; <code>CONFIDENTIAL</code> &lt; <code>RESTRICTED</code>. Sin el scope <code>context:build</code>, o pidiendo un nivel por encima del clearance del principal → <b>403</b>. Niveles ilegibles → 400.</li>
+  <li><b>Recuperar</b> por id <span class="pill get">GET</span> <code>/api/v1/context/packages/{id}</code> o por hash <span class="pill get">GET</span> <code>/api/v1/context/snapshots/{hash}</code>.</li>
+</ol>
+
+<h2 class="newpage">16. Flujo: planificador tipado y autonomía</h2>
+<p>Un planificador (persona o agente) propone un <b>plan tipado</b>: una lista de tareas asignadas a servicios, colgado de una meta, con un nivel de autonomía solicitado y la decisión de política que lo respalda. Core lo guarda y, cuando se pide, decide si puede <b>despacharse</b> combinando los techos de autonomía aplicables.</p>
+<table>
+  <tr><th>Nivel</th><th>Significado</th></tr>
+  <tr><td>A0</td><td>Totalmente supervisado: nunca se despacha solo</td></tr>
+  <tr><td>A1</td><td>Asistido, confirmación en cada paso</td></tr>
+  <tr><td>A2</td><td>Semiautónomo con aprobación de inicio</td></tr>
+  <tr><td>A3</td><td>Autónomo condicionado a políticas y presupuesto</td></tr>
+  <tr><td>A4</td><td>Alta autonomía con auditoría posterior</td></tr>
+  <tr><td>A5</td><td>Totalmente autónomo dentro del sandbox</td></tr>
+</table>
+<ol class="flow">
+  <li><b>Proponer</b> <span class="pill post">POST</span> <code>/api/v1/planner/proposals</code>
+<pre>{ "goal_id": "goal_tfm", "requested_autonomy": "A3",
+  "policy_decision": { "authorization": "ALLOW", "executable": true },
+  "tasks": [
+    { "task_id": "resumir", "title": "Resumir fuentes", "description": "Tarea LLM",
+      "assigned_service": "ai_broker", "requires_human_approval": false, "estimated_duration_sec": 120 },
+    { "task_id": "publicar", "title": "Publicar", "description": "Acción irreversible",
+      "assigned_service": "agora", "requires_human_approval": true } ],
+  "principal_id": "athena", "principal_scopes": ["planner:propose"] }</pre>
+  La meta debe existir (404), hace falta al menos una tarea con <code>task_id</code> únicos (400) y el principal necesita el scope <code>planner:propose</code> (403).</li>
+  <li><b>Decidir</b> <span class="pill post">POST</span> <code>/api/v1/planner/proposals/{id}/decision</code> con <code>{"applicable_ceilings":["A3","A4"]}</code>.
+<pre>→ { "approved_for_dispatch": true, "effective_autonomy": "A3",
+    "reasons": ["Aprobado para despacho con nivel efectivo A3."] }</pre></li>
+</ol>
+<h4>Reglas de la decisión</h4>
+<ul>
+  <li>La autonomía efectiva es el <b>mínimo</b> entre la solicitada y todos los techos. Ninguna capa la eleva.</li>
+  <li>Un techo ilegible (p. ej. <code>"A1x"</code>) → 400: ignorarlo subiría la autonomía.</li>
+  <li>No se despacha si la política adjunta no es ALLOW, si no es ejecutable, si el nivel efectivo es A0, o si alguna tarea requiere aprobación humana y el nivel es A0–A1. Todas las razones aparecen en <code>reasons</code>.</li>
+</ul>
+<div class="note warn"><b>Importante</b>Core decide si un plan <i>puede</i> despacharse; no lo despacha. Crear las tareas en Gestión Tareas IA o las tarjetas en Agora es responsabilidad de quien pidió la decisión.</div>
+
+<h2>17. Idempotencia de peticiones</h2>
+<p>Cualquier petición POST/PUT/PATCH puede hacerse segura frente a reintentos añadiendo la cabecera <code>X-Idempotency-Key</code> (o <code>Idempotency-Key</code>). Opcionalmente: <code>X-Principal-Id</code> (quién llama) y <code>X-Operation-Id</code>.</p>
+<ul>
+  <li>La clave vale dentro de su espacio <b>principal + método y ruta + clave</b>. La misma clave usada por otro principal o en otra ruta es otra operación.</li>
+  <li>Misma clave y mismo cuerpo → se devuelve la respuesta original con <code>X-Idempotent-Replay: true</code>; no se repite el efecto.</li>
+  <li>Misma clave y cuerpo distinto → <b>409</b> <code>IdempotencyConflict</code>.</li>
+  <li>Misma clave mientras la primera petición aún se procesa → <b>409</b> <code>IdempotencyInProgress</code> con <code>Retry-After: 1</code>.</li>
+  <li>Si la operación falla con error 5xx, la clave se libera y puede reintentarse. Las respuestas 4xx sí quedan registradas.</li>
+</ul>
+<pre>curl -X POST http://127.0.0.1:8000/api/v1/goals -H "Content-Type: application/json" ^
+     -H "X-Idempotency-Key: alta-meta-tfm" -H "X-Principal-Id: gestion_tareas" ^
+     -d "{\"title\":\"Entregar el TFM\",\"description\":\"…\"}"</pre>
+
+<h2 class="newpage">18. Recorrido completo con el Broker y Agora</h2>
+<p>Este es el flujo que se ejecutó de verdad el 7 de octubre de 2026 contra el AI Broker del PC IA (<code>http://192.168.1.52:8765</code>, contrato 2.11) y el tablero de Agora de este equipo (<code>https://127.0.0.1:8741</code>). Superó 29 comprobaciones. Sirve como plantilla para integrar cualquier cliente.</p>
+<ol class="flow">
+  <li><b>Comprobar Core</b>: <code>/health</code> y <code>/ready</code>.</li>
+  <li><b>Registrar los servicios reales</b>: <code>ai_broker</code> (IP privada de la LAN, admitida) y <code>agora_board</code> (loopback https), y la capacidad <code>llm.task</code>. Se comprueba que una capacidad de un proveedor inexistente se rechaza.</li>
+  <li><b>Crear meta y objetivo</b> para la tarea.</li>
+  <li><b>Definir y evaluar políticas</b> del scope <code>broker:invoke</code>: datos internos y baratos → ALLOW ejecutable con obligación <code>audit_trace</code> y tope de 600 tokens; datos confidenciales → REQUIRE_APPROVAL; sin coste → INDETERMINATE.</li>
+  <li><b>Reservar presupuesto</b> (0,5 sobre una cuenta de 2).</li>
+  <li><b>Calcular el digest</b> del cuerpo exacto que se enviará al Broker, conceder una aprobación <i>exact_action</i> de un uso con ese digest y consumirla. Un digest manipulado se rechaza con 403.</li>
+  <li><b>Fijar el contexto</b> en un ContextPackage y <b>registrar el plan</b> (Broker + Agora); la decisión sale aprobada en A3.</li>
+  <li><b>Restore previo</b>: la operación aún no existe → <code>retry_allowed</code>; se registra el recibo <code>accepted</code>.</li>
+  <li><b>Invocar al Broker</b> (<code>POST /api/v1/tasks</code> con cabecera <code>X-Admin-Token</code>, clave de idempotencia estable y <code>risk.data_classification</code> tomado del contexto evaluado). Recibo <code>in_progress</code> con el <code>task_id</code> → <code>follow_up_no_resend</code>. Sondeo hasta <code>completed</code>.</li>
+  <li><b>Cerrar</b>: recibo <code>succeeded</code> con el hash del resultado → <code>reconstruct_state_no_resend</code>; eventos <code>full_state</code> de la tarea (un evento tardío no hace retroceder la proyección); consumo del presupuesto; relación objetivo → tarea en el grafo; identity binding operación → <code>task_id</code>; objetivo a <code>completed</code>.</li>
+  <li><b>Idempotencia del Broker</b>: reenviar la misma petición devuelve la misma tarea, no una nueva.</li>
+  <li><b>Agora (sólo lectura)</b>: se lee el tablero y los perfiles con el token Bearer del tablero y se proyecta una foto en Core como <code>full_state</code> de <code>agora:board</code>.</li>
+</ol>
+<p>Respuesta real obtenida del Broker: <i>“Un plano de control sirve para coordinar y gestionar los recursos y operaciones del sistema distribuido, asegurando su correcto funcionamiento y comunicación entre sus componentes.”</i></p>
+<div class="note"><b>Cómo repetirlo</b>El guion es <code>python scriptse2e_broker_agora.py &lt;url_core&gt; &lt;token_broker&gt; &lt;token_agora&gt;</code>. Necesita el PC IA encendido, el tablero de Agora arrancado (<code>C:\Agora\Agora Tablero.cmd</code>) y el certificado <code>C:\Agora\pki\ca.crt</code>. El Broker cambia su token en cada arranque: si da 403, pide el token nuevo. En Agora no se crean tarjetas, porque eso encargaría trabajo real al PC IA.</div>
+
+<h2>19. Configuración</h2>
+<table>
+  <tr><th>Variable de entorno</th><th>Por defecto</th><th>Para qué</th></tr>
+  <tr><td><code>AI_OS_DB_PATH</code></td><td><code>%LOCALAPPDATA%\AIOSCore\data\ai_os_core.db</code></td><td>Fichero SQLite (<code>:memory:</code> para pruebas)</td></tr>
+  <tr><td><code>AI_OS_SQLITE_SYNCHRONOUS</code></td><td><code>FULL</code></td><td>Durabilidad de SQLite</td></tr>
+  <tr><td><code>AI_OS_SQLITE_TIMEOUT_MS</code></td><td><code>5000</code></td><td>Espera máxima ante bloqueo de escritura</td></tr>
+  <tr><td><code>AI_OS_ALLOWED_HOSTS</code></td><td>(vacío)</td><td>Hosts DNS extra admitidos en el registro, separados por comas</td></tr>
+  <tr><td><code>AI_OS_ALLOW_PRIVATE_NETS</code></td><td><code>true</code></td><td>Admitir IPs de redes privadas al registrar servicios</td></tr>
+  <tr><td><code>AI_OS_ENV</code>, <code>AI_OS_HOST</code>, <code>AI_OS_PORT</code></td><td><code>development</code>, <code>127.0.0.1</code>, <code>8000</code></td><td>Informativas; el puerto real lo fija uvicorn</td></tr>
+</table>
+
+<h2 class="newpage">20. Pruebas y verificación</h2>
+<pre>run.bat tests                         :: o bien
+python -m pytest -q                   :: 51 pruebas
+python -m pytest tests/integration/test_api_regressions.py -v</pre>
+<table>
+  <tr><th>Fichero</th><th>Cubre</th></tr>
+  <tr><td><code>tests/unit/test_policy_semantics.py</code></td><td>Lógica ternaria y casos C08, C18, C19, C20</td></tr>
+  <tr><td><code>tests/unit/test_contracts.py</code></td><td>Inmutabilidad de referencias, bindings y revisión monótona</td></tr>
+  <tr><td><code>tests/integration/test_m0_cases.py</code></td><td>C01, C02, C03, C05, C06, C07, C15, C23, C24, registro, metas, grafo, auditoría</td></tr>
+  <tr><td><code>tests/integration/test_p02_p15_advanced.py</code></td><td>C09, C12, C21, C22, certificaciones, planner</td></tr>
+  <tr><td><code>tests/integration/test_api_smoke.py</code></td><td>Arranque, <code>/ready</code> y CRUD básico por HTTP</td></tr>
+  <tr><td><code>tests/integration/test_api_regressions.py</code></td><td>Carreras reales de C01, C07 y C09 (peticiones simultáneas), duplicados, fail-open, SSRF y las rutas nuevas de 0.2.0</td></tr>
+</table>
+<p>Los tests usan siempre una base temporal (<code>tests/__init__.py</code>); no tocan la base real. Las pruebas de carrera se validaron quitando el arreglo: sin él, fallan.</p>
+
+<h2>21. Errores frecuentes y cómo resolverlos</h2>
+<table>
+  <tr><th>Síntoma</th><th>Causa probable</th><th>Qué hacer</th></tr>
+  <tr><td>404 al reservar presupuesto</td><td>La cuenta no existe (en 0.2.0 consultar no la crea)</td><td>Crearla con <code>POST /budget/accounts</code></td></tr>
+  <tr><td>400 <code>SSRFSecurityViolation</code> al registrar</td><td>Host público, link-local o DNS fuera de la allowlist</td><td>Usar la IP de la LAN o añadir el nombre a <code>AI_OS_ALLOWED_HOSTS</code></td></tr>
+  <tr><td>Evaluar políticas devuelve DENY sin <code>matched_policy_refs</code></td><td>No hay políticas en ese scope (denegar por defecto)</td><td>Revisar el <code>scope</code> con <code>GET /policies</code></td></tr>
+  <tr><td>INDETERMINATE inesperado</td><td>Falta un dato o tiene un tipo no comparable</td><td>Mirar <code>unknown_inputs</code> y completar el contexto</td></tr>
+  <tr><td>403 al consumir una aprobación</td><td>Caducada, revocada, agotada o digest distinto</td><td><code>GET /approvals/{id}/status</code></td></tr>
+  <tr><td>409 <code>IdempotencyInProgress</code></td><td>Reintento mientras la primera petición sigue en curso</td><td>Esperar <code>Retry-After</code> y repetir</td></tr>
+  <tr><td>Un evento no cambia la versión canónica</td><td>No es <code>full_state</code>, es de revisión menor o está en cuarentena</td><td><code>GET /events/quarantine</code> y <code>/events/gaps</code></td></tr>
+  <tr><td>El servicio no arranca: puerto ocupado</td><td>Ya hay otra instancia en el 8000</td><td>Cerrarla o arrancar con <code>--port 8010</code></td></tr>
+</table>
+
+<h2>22. Límites conocidos</h2>
+<div class="note bad"><b>Sin autenticación</b>Core no comprueba quién llama: <code>X-Principal-Id</code>, los scopes y el clearance los declara el propio cliente en la petición. Está pensado para escuchar sólo en <code>127.0.0.1</code>. No lo expongas en la red sin poner delante un proxy con autenticación.</div>
+<ul>
+  <li>Un REPLAY_GAP se registra y se pone en cuarentena, pero no hay todavía endpoint para marcarlo resuelto ni flujo automático de snapshot y nueva línea base (§6.4 de la especificación).</li>
+  <li>Las políticas no se borran: se desactivan con <code>enabled: false</code>. Metas, objetivos y recursos tampoco tienen borrado.</li>
+  <li>La “incógnita de seguridad” (C20) se detecta por el nombre del campo (<i>security</i>, <i>auth</i>).</li>
+  <li>No hay outbox de comandos activo: la tabla <code>command_outbox</code> existe pero ningún flujo la usa todavía; tampoco hay endpoint para consultar las trazas de decisión de políticas (se guardan en <code>decision_traces</code>).</li>
+  <li>La promoción y degradación de autonomía de P15 dependen de una <code>AutonomyPolicyDefinition</code> aceptada que aún no existe; hoy sólo se combinan techos.</li>
+</ul>
+
+<h2 class="newpage">23. Referencia rápida de endpoints</h2>
+<table>
+  <tr><th>Método</th><th>Ruta</th><th>Para qué</th></tr>
+  <tr><td>GET</td><td><code>/health</code> · <code>/ready</code></td><td>Vida y preparación</td></tr>
+  <tr><td>POST · GET</td><td><code>/api/v1/goals</code></td><td>Crear · listar metas</td></tr>
+  <tr><td>GET</td><td><code>/api/v1/goals/{id}</code> · <code>/objectives</code> · <code>/audit</code></td><td>Meta, sus objetivos, su auditoría</td></tr>
+  <tr><td>PATCH</td><td><code>/api/v1/goals/{id}/status</code></td><td>Cambiar estado de meta</td></tr>
+  <tr><td>POST · GET · PATCH</td><td><code>/api/v1/objectives</code> · <code>/{id}</code> · <code>/{id}/status</code></td><td>Objetivos</td></tr>
+  <tr><td>POST · GET</td><td><code>/api/v1/services</code> · <code>/{id}</code></td><td>Registro de servicios</td></tr>
+  <tr><td>POST · GET</td><td><code>/api/v1/capabilities</code> · <code>/{id}</code></td><td>Capacidades</td></tr>
+  <tr><td>POST · GET</td><td><code>/api/v1/policies</code></td><td>Crear/actualizar · listar políticas</td></tr>
+  <tr><td>POST</td><td><code>/api/v1/policies/evaluate</code></td><td>Decisión consolidada</td></tr>
+  <tr><td>POST</td><td><code>/api/v1/approvals</code> · <code>/use</code> · <code>/{id}/revoke</code></td><td>Conceder · consumir · revocar</td></tr>
+  <tr><td>GET</td><td><code>/api/v1/approvals/{id}/status</code></td><td>Estado efectivo</td></tr>
+  <tr><td>POST</td><td><code>/api/v1/budget/accounts</code> · <code>/reserve</code> · <code>/consume</code> · <code>/release</code></td><td>Presupuesto</td></tr>
+  <tr><td>GET</td><td><code>/api/v1/budget/accounts/{id}</code> · <code>/reservations/{id}</code></td><td>Saldo y reservas</td></tr>
+  <tr><td>POST</td><td><code>/api/v1/events/inbox</code></td><td>Ingesta de eventos</td></tr>
+  <tr><td>GET</td><td><code>/api/v1/events/canonical/{id}</code> · <code>/gaps</code> · <code>/quarantine</code></td><td>Proyección e incidencias</td></tr>
+  <tr><td>POST</td><td><code>/api/v1/operations/receipts</code> · <code>/status</code></td><td>Restore</td></tr>
+  <tr><td>PUT · GET</td><td><code>/api/v1/resources</code> · <code>/{id}</code></td><td>Grafo de recursos</td></tr>
+  <tr><td>POST</td><td><code>/api/v1/resources/relations</code></td><td>Relaciones</td></tr>
+  <tr><td>PUT · GET</td><td><code>/api/v1/identity-bindings</code> · <code>/{global}/{system}</code></td><td>Identidades federadas</td></tr>
+  <tr><td>POST · GET</td><td><code>/api/v1/certifications</code> · <code>/{model}/{cap}/{ver}</code></td><td>Certificaciones</td></tr>
+  <tr><td>POST · GET</td><td><code>/api/v1/context/packages</code> · <code>/{id}</code> · <code>/snapshots/{hash}</code></td><td>Contexto inmutable</td></tr>
+  <tr><td>POST · GET</td><td><code>/api/v1/planner/proposals</code> · <code>/{id}</code> · <code>/{id}/decision</code></td><td>Planes y autonomía</td></tr>
+</table>
+
+<h2>24. Glosario</h2>
+<table>
+  <tr><td><b>Plano de control</b></td><td>Parte del sistema que decide y coordina; el “plano de datos” (Broker, agentes) hace el trabajo.</td></tr>
+  <tr><td><b>Scope</b></td><td>Ámbito al que se aplica una política o autorización (p. ej. <code>broker:invoke</code>).</td></tr>
+  <tr><td><b>Principal</b></td><td>Quién actúa: usuario, servicio o agente, con su rol, scopes y clearance.</td></tr>
+  <tr><td><b>Digest</b></td><td>Hash SHA-256 que identifica de forma exacta un contenido o una operación.</td></tr>
+  <tr><td><b>full_state</b></td><td>Evento con la foto completa de un recurso; el único que mueve la proyección canónica.</td></tr>
+  <tr><td><b>Cuarentena</b></td><td>Evento guardado pero excluido de la proyección por hueco o contradicción.</td></tr>
+  <tr><td><b>REPLAY_GAP</b></td><td>Salto en la numeración de eventos de un flujo.</td></tr>
+  <tr><td><b>Techo de autonomía</b></td><td>Límite máximo de autonomía que impone una capa (política, certificación, usuario).</td></tr>
+  <tr><td><b>Idempotencia</b></td><td>Repetir una petición produce el mismo efecto que hacerla una vez.</td></tr>
+  <tr><td><b>C01…C24</b></td><td>Casos de aceptación de la especificación normativa 0.6.1 (§17).</td></tr>
+</table>
+<p class="small">Manual generado a partir del código de la versión 0.2.0 y de pruebas reales ejecutadas el 7 de octubre de 2026.</p>
+</body>
+</html>

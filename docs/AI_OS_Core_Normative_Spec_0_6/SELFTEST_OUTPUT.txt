@@ -1,0 +1,21 @@
+base: PASS
+approve-flags-only: PASS
+empty-decisions: PASS
+empty-M0: PASS
+fake-preP01: PASS
+inverted-precedence: PASS
+missing-AcceptanceRecord-contract: PASS
+proper-spec-approval: PASS
+invalidated-direct: PASS
+proper-preP01: PASS
+decision-dependency-invalidated: PASS
+decision-revision-mismatch: PASS
+preP01-dependency-invalidated: PASS
+missing-acceptance-dependency: PASS
+acceptance-dependency-cycle: PASS
+P10-as-provider: PASS
+P10-without-dependencies: PASS
+reverse-test-link-broken: PASS
+mandatory-invariant-anchor-removed: PASS
+valid-dependency-chain: PASS
+ALL SELFTESTS PASS

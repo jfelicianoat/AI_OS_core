@@ -1,0 +1,37 @@
+{
+  "package": "AI_OS_Core_Normative_Spec_0_4",
+  "version": "0.4",
+  "status": "draft-reviewable",
+  "source_of_truth": "NORMATIVE_SPEC_0_4.md",
+  "verifier_expected_result": "CONSISTENT_DRAFT",
+  "files": [
+    {
+      "name": "NORMATIVE_SPEC_0_4.md",
+      "sha256": "7abdbd3d3ad6c05fe241f437ae8d7f45cc5e11559f7aabe87cbb895a4b9512c3"
+    },
+    {
+      "name": "REVIEW_V0_3_RESOLUTION_MAP.md",
+      "sha256": "f34a27165301489153e242ba35944c5fc5ae07fa50959c955b97d319b3a94ce7"
+    },
+    {
+      "name": "VERIFICATION_GUIDE.md",
+      "sha256": "a9ec98bbf0a4eb6c13a2a30b7bfbc43dfbbea4f8e70fc2718954306fd334b002"
+    },
+    {
+      "name": "VERIFIER_OUTPUT.txt",
+      "sha256": "21673787b66866651be8e071ab8dbbbe6ca0b1e1ddc2894e081727e78b372bd4"
+    },
+    {
+      "name": "acceptance_registry.json",
+      "sha256": "6bd9b758ac4e53f634dc6b45f3e0462fbd790cd4553c7728a29d722790c6ed7e"
+    },
+    {
+      "name": "spec_registry.json",
+      "sha256": "88edaf934642c5a81d50de03cf0de5fa36eb07ae87491fcd450631bc11914766"
+    },
+    {
+      "name": "verify_spec.py",
+      "sha256": "88dae86d5dd1c95105be3c0558fb761af9f0a6109f098c1a1e5c52ef0c175d51"
+    }
+  ]
+}

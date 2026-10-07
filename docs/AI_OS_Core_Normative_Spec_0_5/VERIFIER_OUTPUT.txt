@@ -1,0 +1,10 @@
+AI OS Core Spec Verifier 0.5
+==================================
+CandidateConsistency: PASS
+SpecApproved: NO
+PreP01Ready: NO
+Errors: 0
+Warnings: 1
+WARN  GATE001: Spec candidata consistente pero decisiones/aceptaciones no permiten SPEC_APPROVED
+
+RESULT: CONSISTENT_DRAFT

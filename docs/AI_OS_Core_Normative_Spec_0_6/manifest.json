@@ -1,0 +1,48 @@
+{
+  "package": "AI_OS_Core_Normative_Spec_0_6",
+  "version": "0.6",
+  "status": "draft-reviewable",
+  "source_of_truth": "NORMATIVE_SPEC_0_6.md",
+  "files": [
+    {
+      "name": "NORMATIVE_SPEC_0_6.md",
+      "sha256": "2cf59b49f66386b1c0d905c0a6b663f6a11abc3b87fccd7e1f0abe336376bf4b"
+    },
+    {
+      "name": "spec_registry.json",
+      "sha256": "e7a40ccf56cbda0100db6d7ed2d50355dd4c699ff0383be7c698e0932a3dd572"
+    },
+    {
+      "name": "test_catalog.json",
+      "sha256": "73b6948218f02ac93ee6b1394d99bf360bf9574307af80e253756b2dd03459b6"
+    },
+    {
+      "name": "acceptance_registry.json",
+      "sha256": "b8d98b2dc5018d7ce8c360499df217c90a98fe11547ff05899ba3463bbb22fc6"
+    },
+    {
+      "name": "verify_spec.py",
+      "sha256": "1817aed42b388026702e7c5c99543d36539a6c1eaefbd9881f647f1de98b292c"
+    },
+    {
+      "name": "test_verifier.py",
+      "sha256": "eda6cb04dba77a3c8b764ea41db9c7c1200d5a8b22fe18ee4c167ab51e62a184"
+    },
+    {
+      "name": "VERIFICATION_GUIDE.md",
+      "sha256": "fcafa6428435793e693932b2560c89571c69c29fd9e4146c535f5310b89777f4"
+    },
+    {
+      "name": "PRESERVATION_MATRIX_0_4_TO_0_6.md",
+      "sha256": "90863174edf41549a6ae87890abf17974e4927eab84fa30e1a268bd57e1a3099"
+    },
+    {
+      "name": "REVIEW_0_5_RESOLUTION_MAP.md",
+      "sha256": "eb602187f4c8d4ea1399ecc50b12221810722c2ab668017a6709152a0b69d747"
+    },
+    {
+      "name": "CHANGELOG_0_6.md",
+      "sha256": "84cc22db5462ae4081b52dad831e8e4535f5e128471e1e15a4bf0b5476f673c7"
+    }
+  ]
+}

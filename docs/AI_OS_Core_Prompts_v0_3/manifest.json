@@ -1,0 +1,23 @@
+{
+  "package": "AI_OS_Core_Prompts_v0_3",
+  "version": "0.3",
+  "status": "draft-reviewable",
+  "recommended_prompt_order": [
+    "P00_NORMALIZACION_DOCUMENTAL.md",
+    "P01_CORE_M0.md",
+    "P02_CORE_APPROVALS_POLICIES_BASE.md",
+    "P03_BROKER_MODEL_DRIFT_BASE.md",
+    "P04_ATHENA_M1.md",
+    "P05_AGORA_M1.md",
+    "P06_TASK_MANAGER_M2_PREREQ.md",
+    "P07_KO_CONTEXT_EVIDENCE.md",
+    "P08_CHATYGPT_M1_M2.md",
+    "P09_OPTIONAL_INTEGRATIONS.md",
+    "P10_M2_E2E_MANUAL.md",
+    "P11_M3_AUTO_CERTIFICATION.md",
+    "P12_M3_CONTEXT_ENGINE.md",
+    "P13_M4_POLICY_ENGINE.md",
+    "P14_M5_TYPED_PLANNER.md",
+    "P15_M6_AUTONOMY.md"
+  ]
+}

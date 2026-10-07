@@ -1,0 +1,11 @@
+base: PASS
+approve-flags-only: PASS
+empty-decisions: PASS
+empty-M0: PASS
+fake-preP01: PASS
+inverted-precedence: PASS
+missing-AcceptanceRecord-contract: PASS
+proper-spec-approval: PASS
+invalidated-decision-acceptance: PASS
+proper-preP01-ready: PASS
+ALL SELFTESTS PASS

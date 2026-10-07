@@ -1,0 +1,926 @@
+{
+  "spec": {
+    "id": "ai-os-core-normative-spec",
+    "version": "0.5",
+    "status": "draft-reviewable",
+    "source_of_truth": "NORMATIVE_SPEC_0_5.md",
+    "source_of_truth_sha256": "d329ac13555dc3cfaeec469467a1f59acdffda40e4ed491a6a175aa247e4a421",
+    "precedence": [
+      "NORMATIVE_SPEC_0_5.md",
+      "formal_contracts_0.5",
+      "accepted_acceptance_records",
+      "historical_docs"
+    ]
+  },
+  "mandatory_decisions": [
+    "D-POLICY",
+    "D-APPROVAL",
+    "D-EVENT",
+    "D-SQLITE",
+    "D-SCHEDULING",
+    "D-AUTONOMY"
+  ],
+  "decisions": [
+    {
+      "id": "D-POLICY",
+      "status": "proposed",
+      "artifact_revision": "0.5",
+      "artifact_hash": "d329ac13555dc3cfaeec469467a1f59acdffda40e4ed491a6a175aa247e4a421"
+    },
+    {
+      "id": "D-APPROVAL",
+      "status": "proposed",
+      "artifact_revision": "0.5",
+      "artifact_hash": "d329ac13555dc3cfaeec469467a1f59acdffda40e4ed491a6a175aa247e4a421"
+    },
+    {
+      "id": "D-EVENT",
+      "status": "proposed",
+      "artifact_revision": "0.5",
+      "artifact_hash": "d329ac13555dc3cfaeec469467a1f59acdffda40e4ed491a6a175aa247e4a421"
+    },
+    {
+      "id": "D-SQLITE",
+      "status": "proposed",
+      "artifact_revision": "0.5",
+      "artifact_hash": "d329ac13555dc3cfaeec469467a1f59acdffda40e4ed491a6a175aa247e4a421"
+    },
+    {
+      "id": "D-SCHEDULING",
+      "status": "proposed",
+      "artifact_revision": "0.5",
+      "artifact_hash": "d329ac13555dc3cfaeec469467a1f59acdffda40e4ed491a6a175aa247e4a421"
+    },
+    {
+      "id": "D-AUTONOMY",
+      "status": "proposed",
+      "artifact_revision": "0.5",
+      "artifact_hash": "d329ac13555dc3cfaeec469467a1f59acdffda40e4ed491a6a175aa247e4a421"
+    }
+  ],
+  "contracts": [
+    "ResourceReference",
+    "IdentityBinding",
+    "ResourceRevision",
+    "ProducerStreamIdentity",
+    "Goal",
+    "Objective",
+    "CapabilityManifest",
+    "SkillManifest",
+    "CapabilityAvailability",
+    "ModelIdentityEvidence",
+    "ExecutionFingerprint",
+    "ModelExecutionConstraint",
+    "ModelInvocationEvidence",
+    "ComparabilityAssessment",
+    "EvaluationVerdict",
+    "Certification",
+    "CertificationApplicability",
+    "CertificationRequest",
+    "Policy",
+    "PolicyDecision",
+    "PolicyObligation",
+    "ConstraintSet",
+    "ApprovalRequest",
+    "ApprovalAuthorization",
+    "ApprovalUse",
+    "ApprovalRevocation",
+    "ApprovalEffectiveState",
+    "BudgetReservation",
+    "EventEnvelope",
+    "CommandEnvelope",
+    "EventDeliveryReceipt",
+    "ReplayCursor",
+    "ReplayGap",
+    "OperationStatusQuery",
+    "OperationExecutionStatus",
+    "OperationReceipt",
+    "Task",
+    "HumanWorkSegment",
+    "TaskDependency",
+    "AICapacityForecast",
+    "WorkerAdmission",
+    "InferenceAdmission",
+    "Job",
+    "JobDispatchRequest",
+    "AgentRun",
+    "Artifact",
+    "VerificationResult",
+    "Failure",
+    "ContextRequest",
+    "ContextPackage",
+    "TypedPlanProposal",
+    "EffectiveExecutionDecision",
+    "ServiceRegistration",
+    "ServiceHealth",
+    "AuthorizationPrincipal",
+    "DecisionTrace",
+    "AcceptanceRecord"
+  ],
+  "phases": {
+    "P00": {
+      "requires": []
+    },
+    "P01": {
+      "requires": [
+        "P00"
+      ]
+    },
+    "P02": {
+      "requires": [
+        "P01"
+      ]
+    },
+    "P03": {
+      "requires": [
+        "P02"
+      ]
+    },
+    "P04": {
+      "requires": [
+        "P03"
+      ]
+    },
+    "P05": {
+      "requires": [
+        "P03"
+      ]
+    },
+    "P06": {
+      "requires": [
+        "P05",
+        "P03"
+      ]
+    },
+    "P07": {
+      "requires": [
+        "P01"
+      ]
+    },
+    "P08": {
+      "requires": [
+        "P02"
+      ]
+    },
+    "P10-minimal": {
+      "requires": [
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P08"
+      ]
+    },
+    "P10-contextual": {
+      "requires": [
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08"
+      ]
+    },
+    "P11": {
+      "requires": [
+        "P10-minimal"
+      ]
+    },
+    "P12": {
+      "requires": [
+        "P10-contextual",
+        "P07"
+      ]
+    },
+    "P13": {
+      "requires": [
+        "P10-minimal"
+      ]
+    },
+    "P14": {
+      "requires": [
+        "P12",
+        "P13"
+      ]
+    },
+    "P15": {
+      "requires": [
+        "P14"
+      ]
+    }
+  },
+  "milestone_profiles": {
+    "M0": {
+      "requirements": [
+        "M0-REGISTRY",
+        "M0-GOALS",
+        "M0-RESOURCE-GRAPH",
+        "M0-IDEMPOTENCY",
+        "M0-AUDIT",
+        "M0-POLICY-BASE",
+        "M0-APPROVAL",
+        "M0-BUDGET",
+        "M0-CERT-PROJECTION",
+        "M0-EVENTS",
+        "M0-RESTORE-FAKE"
+      ]
+    },
+    "M2-minimal": {
+      "requirements": [
+        "M2-APPROVAL",
+        "M2-BUDGET",
+        "M2-CERT",
+        "M2-MODEL-ENFORCEMENT",
+        "M2-MODEL-EVIDENCE",
+        "M2-INFERENCE-ADMISSION",
+        "M2-JOB",
+        "M2-WORKER-ADMISSION",
+        "M2-TASKJOB",
+        "M2-AGGREGATION",
+        "M2-HUMAN-SEGMENTS",
+        "M2-TRACE",
+        "M2-REPLAY-BROKER",
+        "M2-REPLAY-ATHENA",
+        "M2-REPLAY-AGORA",
+        "M2-REPLAY-TASKS",
+        "M2-RESTORE-BROKER",
+        "M2-RESTORE-AGORA"
+      ]
+    },
+    "M2-contextual": {
+      "extends": "M2-minimal",
+      "requirements": [
+        "M2-CONTEXT-EVIDENCE",
+        "M2-REPLAY-KO"
+      ]
+    }
+  },
+  "requirements": [
+    {
+      "id": "M0-REGISTRY",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P01"
+      ],
+      "verifier_phases": [
+        "P01"
+      ],
+      "contracts": [
+        "CapabilityManifest",
+        "ServiceRegistration"
+      ],
+      "tests": [
+        "M0-REG"
+      ]
+    },
+    {
+      "id": "M0-GOALS",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P01"
+      ],
+      "verifier_phases": [
+        "P01"
+      ],
+      "contracts": [
+        "Goal",
+        "Objective"
+      ],
+      "tests": [
+        "M0-GOALS"
+      ]
+    },
+    {
+      "id": "M0-RESOURCE-GRAPH",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P01"
+      ],
+      "verifier_phases": [
+        "P01"
+      ],
+      "contracts": [
+        "ResourceReference",
+        "IdentityBinding"
+      ],
+      "tests": [
+        "M0-GRAPH"
+      ]
+    },
+    {
+      "id": "M0-IDEMPOTENCY",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P01"
+      ],
+      "verifier_phases": [
+        "P01"
+      ],
+      "contracts": [
+        "CommandEnvelope"
+      ],
+      "tests": [
+        "C01"
+      ]
+    },
+    {
+      "id": "M0-AUDIT",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P01"
+      ],
+      "verifier_phases": [
+        "P01"
+      ],
+      "contracts": [
+        "DecisionTrace"
+      ],
+      "tests": [
+        "M0-AUDIT"
+      ]
+    },
+    {
+      "id": "M0-POLICY-BASE",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P02"
+      ],
+      "verifier_phases": [
+        "P02"
+      ],
+      "contracts": [
+        "Policy",
+        "PolicyDecision",
+        "PolicyObligation",
+        "ConstraintSet"
+      ],
+      "tests": [
+        "C08",
+        "C18",
+        "C19",
+        "C20"
+      ]
+    },
+    {
+      "id": "M0-APPROVAL",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P02"
+      ],
+      "verifier_phases": [
+        "P02"
+      ],
+      "contracts": [
+        "ApprovalAuthorization",
+        "ApprovalUse",
+        "ApprovalRevocation"
+      ],
+      "tests": [
+        "C06",
+        "C07"
+      ]
+    },
+    {
+      "id": "M0-BUDGET",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P02"
+      ],
+      "verifier_phases": [
+        "P02"
+      ],
+      "contracts": [
+        "BudgetReservation"
+      ],
+      "tests": [
+        "C09"
+      ]
+    },
+    {
+      "id": "M0-CERT-PROJECTION",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P02"
+      ],
+      "verifier_phases": [
+        "P02"
+      ],
+      "contracts": [
+        "CertificationApplicability"
+      ],
+      "tests": [
+        "M0-CERT-PROJ"
+      ]
+    },
+    {
+      "id": "M0-EVENTS",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P01"
+      ],
+      "verifier_phases": [
+        "P01"
+      ],
+      "contracts": [
+        "EventEnvelope",
+        "ReplayCursor",
+        "ReplayGap"
+      ],
+      "tests": [
+        "C02",
+        "C03",
+        "C05"
+      ]
+    },
+    {
+      "id": "M0-RESTORE-FAKE",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P01"
+      ],
+      "verifier_phases": [
+        "P01"
+      ],
+      "contracts": [
+        "OperationStatusQuery",
+        "OperationExecutionStatus",
+        "OperationReceipt"
+      ],
+      "tests": [
+        "C15"
+      ]
+    },
+    {
+      "id": "M2-APPROVAL",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P02"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "ApprovalAuthorization",
+        "ApprovalUse"
+      ],
+      "tests": [
+        "C06",
+        "C07"
+      ]
+    },
+    {
+      "id": "M2-BUDGET",
+      "owners": [
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P02"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "BudgetReservation"
+      ],
+      "tests": [
+        "C09"
+      ]
+    },
+    {
+      "id": "M2-CERT",
+      "owners": [
+        "AI OS Core",
+        "Model Drift"
+      ],
+      "provider_phases": [
+        "P02",
+        "P03"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "Certification",
+        "CertificationApplicability"
+      ],
+      "tests": [
+        "C11"
+      ]
+    },
+    {
+      "id": "M2-MODEL-ENFORCEMENT",
+      "owners": [
+        "AI Broker"
+      ],
+      "provider_phases": [
+        "P03"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "ModelExecutionConstraint"
+      ],
+      "tests": [
+        "C10"
+      ]
+    },
+    {
+      "id": "M2-MODEL-EVIDENCE",
+      "owners": [
+        "AI Broker",
+        "Athena"
+      ],
+      "provider_phases": [
+        "P03",
+        "P04"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "ModelInvocationEvidence"
+      ],
+      "tests": [
+        "C10"
+      ]
+    },
+    {
+      "id": "M2-INFERENCE-ADMISSION",
+      "owners": [
+        "AI Broker"
+      ],
+      "provider_phases": [
+        "P03"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "InferenceAdmission"
+      ],
+      "tests": [
+        "C17"
+      ]
+    },
+    {
+      "id": "M2-JOB",
+      "owners": [
+        "Agora"
+      ],
+      "provider_phases": [
+        "P05"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "Job",
+        "JobDispatchRequest"
+      ],
+      "tests": [
+        "C02",
+        "C13"
+      ]
+    },
+    {
+      "id": "M2-WORKER-ADMISSION",
+      "owners": [
+        "Agora"
+      ],
+      "provider_phases": [
+        "P05"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "WorkerAdmission"
+      ],
+      "tests": [
+        "C16"
+      ]
+    },
+    {
+      "id": "M2-TASKJOB",
+      "owners": [
+        "Gestion Tareas IA",
+        "Agora"
+      ],
+      "provider_phases": [
+        "P05",
+        "P06"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "JobDispatchRequest",
+        "Task"
+      ],
+      "tests": [
+        "C01",
+        "C13"
+      ]
+    },
+    {
+      "id": "M2-AGGREGATION",
+      "owners": [
+        "Gestion Tareas IA"
+      ],
+      "provider_phases": [
+        "P06"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "Task"
+      ],
+      "tests": [
+        "C13"
+      ]
+    },
+    {
+      "id": "M2-HUMAN-SEGMENTS",
+      "owners": [
+        "Gestion Tareas IA"
+      ],
+      "provider_phases": [
+        "P06"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "HumanWorkSegment"
+      ],
+      "tests": [
+        "C14"
+      ]
+    },
+    {
+      "id": "M2-TRACE",
+      "owners": [
+        "ChatyGPT",
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P08"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "DecisionTrace",
+        "ResourceReference"
+      ],
+      "tests": [
+        "UI-M2"
+      ]
+    },
+    {
+      "id": "M2-REPLAY-BROKER",
+      "owners": [
+        "AI Broker"
+      ],
+      "provider_phases": [
+        "P03"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "EventEnvelope",
+        "ReplayCursor"
+      ],
+      "tests": [
+        "C04",
+        "C05"
+      ]
+    },
+    {
+      "id": "M2-REPLAY-ATHENA",
+      "owners": [
+        "Athena"
+      ],
+      "provider_phases": [
+        "P04"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "EventEnvelope",
+        "ReplayCursor"
+      ],
+      "tests": [
+        "C04",
+        "C05"
+      ]
+    },
+    {
+      "id": "M2-REPLAY-AGORA",
+      "owners": [
+        "Agora"
+      ],
+      "provider_phases": [
+        "P05"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "EventEnvelope",
+        "ReplayCursor"
+      ],
+      "tests": [
+        "C04",
+        "C05"
+      ]
+    },
+    {
+      "id": "M2-REPLAY-TASKS",
+      "owners": [
+        "Gestion Tareas IA"
+      ],
+      "provider_phases": [
+        "P06"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "EventEnvelope",
+        "ReplayCursor"
+      ],
+      "tests": [
+        "C04",
+        "C05"
+      ]
+    },
+    {
+      "id": "M2-RESTORE-BROKER",
+      "owners": [
+        "AI Broker"
+      ],
+      "provider_phases": [
+        "P03"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "OperationStatusQuery",
+        "OperationExecutionStatus",
+        "OperationReceipt"
+      ],
+      "tests": [
+        "C15"
+      ]
+    },
+    {
+      "id": "M2-RESTORE-AGORA",
+      "owners": [
+        "Agora"
+      ],
+      "provider_phases": [
+        "P05"
+      ],
+      "verifier_phases": [
+        "P10-minimal",
+        "P10-contextual"
+      ],
+      "contracts": [
+        "OperationStatusQuery",
+        "OperationExecutionStatus",
+        "OperationReceipt"
+      ],
+      "tests": [
+        "C15"
+      ]
+    },
+    {
+      "id": "M2-CONTEXT-EVIDENCE",
+      "owners": [
+        "Knowledge Orchestrator",
+        "Athena",
+        "AI OS Core"
+      ],
+      "provider_phases": [
+        "P07",
+        "P04"
+      ],
+      "verifier_phases": [
+        "P10-contextual"
+      ],
+      "contracts": [
+        "ContextPackage"
+      ],
+      "tests": [
+        "C12"
+      ]
+    },
+    {
+      "id": "M2-REPLAY-KO",
+      "owners": [
+        "Knowledge Orchestrator"
+      ],
+      "provider_phases": [
+        "P07"
+      ],
+      "verifier_phases": [
+        "P10-contextual"
+      ],
+      "contracts": [
+        "EventEnvelope",
+        "ReplayCursor"
+      ],
+      "tests": [
+        "C04",
+        "C05"
+      ]
+    }
+  ],
+  "pre_p01_artifacts": [
+    {
+      "id": "DOC-CONTRACT-INVENTORY",
+      "name": "Contract Inventory"
+    },
+    {
+      "id": "DOC-DATA-DICTIONARY",
+      "name": "Data Dictionary"
+    },
+    {
+      "id": "DOC-STATE-TRANSITIONS",
+      "name": "State Transition Tables"
+    },
+    {
+      "id": "DOC-AUTH-MATRIX",
+      "name": "Authorization Matrix"
+    },
+    {
+      "id": "DOC-EVENT-AUTHORITY",
+      "name": "Event Authority Matrix"
+    },
+    {
+      "id": "DOC-PERSISTENCE-MAP",
+      "name": "Persistence Mapping"
+    },
+    {
+      "id": "DOC-CONTRACT-SCHEMAS",
+      "name": "Contract Schemas 0.5"
+    },
+    {
+      "id": "DOC-FIXTURES",
+      "name": "Fixtures"
+    },
+    {
+      "id": "DOC-ACCEPTANCE-BOOTSTRAP",
+      "name": "Acceptance Registry bootstrap"
+    }
+  ]
+}

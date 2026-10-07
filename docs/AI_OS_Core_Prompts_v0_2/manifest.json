@@ -1,0 +1,29 @@
+{
+  "package": "AI_OS_Core_Prompts_v0_2",
+  "version": "0.2",
+  "status": "draft-reviewable",
+  "supersedes": "AI_OS_Core_Prompts_v0_1",
+  "recommended_order": [
+    "00A_NORMALIZACION_E_INVENTARIO.md",
+    "00B_CONTRATOS_MAESTROS.md",
+    "00C_POLICIES_APPROVALS_AUTH.md",
+    "00D_EVENTOS_IDEMPOTENCIA_DURABILIDAD.md",
+    "00E_IDENTIDADES_ESTADOS_Y_PERSISTENCIA.md",
+    "00F_PLAN_FISICO_REPOS_Y_MVP.md",
+    "01_CORE_MVP_FUNDACION.md",
+    "02_CORE_REGISTRY_EVENTS_POLICIES.md",
+    "03_AI_BROKER_MODEL_DRIFT.md",
+    "04_ATHENA.md",
+    "05_AGORA.md",
+    "06_GESTION_TAREAS_IA.md",
+    "07_KNOWLEDGE_ORCHESTRATOR.md",
+    "08_CHATYGPT.md",
+    "09_LOCAL_AI_LAB_Y_YT_CAPTURE.md",
+    "10_E2E_SIN_AUTONOMIA.md",
+    "11_CERTIFICACION_AUTOMATIZADA.md",
+    "12_CONTEXT_ENGINE.md",
+    "13_POLICY_ENGINE.md",
+    "14_PLANNER_TIPADO.md",
+    "15_AUTONOMIA_CONDICIONAL.md"
+  ]
+}

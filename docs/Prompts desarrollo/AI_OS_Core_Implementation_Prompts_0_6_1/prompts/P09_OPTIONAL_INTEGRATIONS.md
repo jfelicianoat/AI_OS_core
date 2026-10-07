@@ -1,0 +1,41 @@
+# P09 — Local AI Lab y YT Capture opcionales
+
+## ROL
+Integrador conservador de componentes opcionales.
+
+## OBJETIVO REAL
+Aportar evidencia/captura sin nuevas dependencias críticas.
+
+## BASELINE NORMATIVA OBLIGATORIA
+
+Trabaja contra **AI OS Core Normative Specification 0.6.1**, SHA-256 `d98f9a21c2de1df9b703350acf3434dbf597d13f73fc4bc2a02d78c48793eca8`. Lee `NORMATIVE_SPEC_0_6_1.md` y `GLOBAL_RULES.md` antes de programar. Si el repo real contradice la Spec, devuelve `SPEC_GAP_REPORT` y no cambies silenciosamente ownership, contratos o invariantes.
+
+## REPOSITORIOS AFECTADOS
+Local AI Lab y YT_Capture_Plugin.
+
+## PRERREQUISITOS
+M1 Core; no bloquea M2.
+
+## ENTRADAS
+Spec y flujos actuales.
+
+## TAREA Y CAMBIOS EXACTOS
+Local AI Lab: opcional evidence.available con refs/hashes, manteniendo Model Drift como autoridad. YT Capture: sin cambio obligatorio; mantener YouTube→Markdown→KO; capture.completed sólo con consumidor real.
+
+## NO HACER
+No Core dependency crítica ni duplicar knowledge/cert authority.
+
+## VERIFICACIÓN CON FIXTURES / PRUEBAS AISLADAS
+Fixture si se añade evento.
+
+## PRUEBAS REALES
+Smoke opcional.
+
+## EVIDENCIAS A ENTREGAR
+Sólo si hay cambios.
+
+## CRITERIOS DE ACEPTACIÓN
+Puede omitirse sin bloquear M2.
+
+## FORMATO DE SALIDA DEL AGENTE
+Findings y PHASE_RESULT PASS|SKIPPED|BLOCKED.

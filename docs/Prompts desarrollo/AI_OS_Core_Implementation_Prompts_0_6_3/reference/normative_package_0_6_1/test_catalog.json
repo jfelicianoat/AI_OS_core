@@ -1,0 +1,280 @@
+{
+  "version": "0.6.1",
+  "tests": [
+    {
+      "id": "C01",
+      "type": "isolated/integration",
+      "covers": [
+        "M0-IDEMPOTENCY",
+        "M2-TASKJOB"
+      ],
+      "expected": "same key+same request => one logical operation; same key+different request => conflict"
+    },
+    {
+      "id": "C02",
+      "type": "isolated/integration",
+      "covers": [
+        "M0-EVENTS",
+        "M2-JOB"
+      ],
+      "expected": "older full_state cannot regress newer canonical revision"
+    },
+    {
+      "id": "C03",
+      "type": "isolated",
+      "covers": [
+        "M0-EVENTS"
+      ],
+      "expected": "contradictory full_state same revision quarantined; audit same revision allowed"
+    },
+    {
+      "id": "C04",
+      "type": "integration",
+      "covers": [
+        "M2-REPLAY-BROKER",
+        "M2-REPLAY-ATHENA",
+        "M2-REPLAY-AGORA",
+        "M2-REPLAY-TASKS",
+        "M2-REPLAY-KO"
+      ],
+      "expected": "producer outbox replays after Core outage according to declared guarantee profile"
+    },
+    {
+      "id": "C05",
+      "type": "isolated/integration",
+      "covers": [
+        "M0-EVENTS",
+        "M2-REPLAY-BROKER",
+        "M2-REPLAY-ATHENA",
+        "M2-REPLAY-AGORA",
+        "M2-REPLAY-TASKS",
+        "M2-REPLAY-KO"
+      ],
+      "expected": "unrecoverable sequence gap freezes projection until snapshot baseline"
+    },
+    {
+      "id": "C06",
+      "type": "isolated/integration",
+      "covers": [
+        "M0-APPROVAL",
+        "M2-APPROVAL"
+      ],
+      "expected": "expired authorization before commit creates neither ApprovalUse nor command"
+    },
+    {
+      "id": "C07",
+      "type": "concurrency",
+      "covers": [
+        "M0-APPROVAL",
+        "M2-APPROVAL"
+      ],
+      "expected": "only one operation consumes final use; operation_id with different digest conflicts"
+    },
+    {
+      "id": "C08",
+      "type": "isolated",
+      "covers": [
+        "M0-POLICY-BASE"
+      ],
+      "expected": "positive approval obligation is preserved when another policy does not require it"
+    },
+    {
+      "id": "C09",
+      "type": "concurrency",
+      "covers": [
+        "M0-BUDGET",
+        "M2-BUDGET"
+      ],
+      "expected": "two reservations 80 against 100 cannot both succeed"
+    },
+    {
+      "id": "C10",
+      "type": "integration",
+      "covers": [
+        "M2-MODEL-ENFORCEMENT",
+        "M2-MODEL-EVIDENCE"
+      ],
+      "expected": "model outside allowed set is not invoked; evidence records actual model invoked"
+    },
+    {
+      "id": "C11",
+      "type": "isolated/integration",
+      "covers": [
+        "M2-CERT"
+      ],
+      "expected": "mandatory certification with stale/not_applicable/indeterminate blocks according to explicit policy; identity enrichment alone does not imply model change"
+    },
+    {
+      "id": "C12",
+      "type": "integration",
+      "covers": [
+        "M2-CONTEXT-EVIDENCE"
+      ],
+      "expected": "historical run can recover exact consumed revision/snapshot after source changes"
+    },
+    {
+      "id": "C13",
+      "type": "integration",
+      "covers": [
+        "M2-JOB",
+        "M2-TASKJOB",
+        "M2-AGGREGATION"
+      ],
+      "expected": "all_required task with one failed required job is not completed"
+    },
+    {
+      "id": "C14",
+      "type": "integration",
+      "covers": [
+        "M2-HUMAN-SEGMENTS"
+      ],
+      "expected": "only human segments block human calendar"
+    },
+    {
+      "id": "C15",
+      "type": "restore",
+      "covers": [
+        "M0-RESTORE-FAKE",
+        "M2-RESTORE-BROKER",
+        "M2-RESTORE-AGORA"
+      ],
+      "expected": "succeeded no resend; accepted/in_progress follow only; not_seen retry under rules; unknown => manual reconciliation"
+    },
+    {
+      "id": "C16",
+      "type": "concurrency/integration",
+      "covers": [
+        "M2-WORKER-ADMISSION"
+      ],
+      "expected": "no compatible capacity => no running; exclusive resource cannot be admitted twice concurrently"
+    },
+    {
+      "id": "C17",
+      "type": "integration",
+      "covers": [
+        "M2-INFERENCE-ADMISSION"
+      ],
+      "expected": "no allowed capacity/model => inference denied/waiting; no out-of-constraint inference"
+    },
+    {
+      "id": "C18",
+      "type": "isolated",
+      "covers": [
+        "M0-POLICY-BASE"
+      ],
+      "expected": "empty conditions require unconditional=true and evaluate TRUE for any/all; unconditional plus non-empty conditions invalid"
+    },
+    {
+      "id": "C19",
+      "type": "isolated",
+      "covers": [
+        "M0-POLICY-BASE"
+      ],
+      "expected": "known min>max => DENY; UNKNOWN-dependent incompatibility => INDETERMINATE"
+    },
+    {
+      "id": "C20",
+      "type": "isolated",
+      "covers": [
+        "M0-POLICY-BASE"
+      ],
+      "expected": "approval does not resolve blocking security UNKNOWN; execution remains false"
+    },
+    {
+      "id": "M0-REG",
+      "type": "isolated/integration",
+      "covers": [
+        "M0-REGISTRY"
+      ],
+      "expected": "register/read service+capability with valid identity, owner and revision; reject illegitimate duplicate/owner"
+    },
+    {
+      "id": "M0-GOALS",
+      "type": "isolated/integration",
+      "covers": [
+        "M0-GOALS"
+      ],
+      "expected": "Goal/Objective create/read/update preserve revision and ownership"
+    },
+    {
+      "id": "M0-GRAPH",
+      "type": "isolated",
+      "covers": [
+        "M0-RESOURCE-GRAPH"
+      ],
+      "expected": "resource bindings/relations round-trip without stealing owner authority"
+    },
+    {
+      "id": "M0-AUDIT",
+      "type": "isolated",
+      "covers": [
+        "M0-AUDIT"
+      ],
+      "expected": "decision/action audit records are append-only and correlate operation/resources"
+    },
+    {
+      "id": "M0-CERT-PROJ",
+      "type": "isolated",
+      "covers": [
+        "M0-CERT-PROJECTION"
+      ],
+      "expected": "Core stores and queries CertificationApplicability projection with source/revision/freshness"
+    },
+    {
+      "id": "UI-M2",
+      "type": "UI/integration",
+      "covers": [
+        "M2-TRACE"
+      ],
+      "expected": "UI shows Goal→Task→Job→Run→Artifact, owner vs projection, freshness, effective model, approval state, without leaking unauthorized excluded resource"
+    },
+    {
+      "id": "C21",
+      "type": "isolated",
+      "covers": [
+        "M0-AUTHORIZATION"
+      ],
+      "expected": "mutation/read without authorized scope or granting policy is denied"
+    },
+    {
+      "id": "C22",
+      "type": "isolated",
+      "covers": [
+        "M0-AUTHORIZATION"
+      ],
+      "expected": "requested classification ceiling cannot exceed principal/policy/destination effective ceiling"
+    },
+    {
+      "id": "C23",
+      "type": "isolated/integration",
+      "covers": [
+        "M0-SERVICE-SECURITY"
+      ],
+      "expected": "service endpoint outside allowlist or redirect to unauthorized host is rejected and credentials are not forwarded"
+    },
+    {
+      "id": "C24",
+      "type": "isolated",
+      "covers": [
+        "M0-IDENTITY-REVISION"
+      ],
+      "expected": "legacy native identity is preserved via binding; adapter revision is durable and explicitly adapter-assigned when no native revision exists"
+    },
+    {
+      "id": "C25",
+      "type": "isolated/integration",
+      "covers": [
+        "M2-TASK-DAG"
+      ],
+      "expected": "blocking task dependency cycle is rejected before commit"
+    },
+    {
+      "id": "C26",
+      "type": "isolated/integration",
+      "covers": [
+        "M2-ARTIFACT-ROLES"
+      ],
+      "expected": "artifact authority, producer and custodian remain distinct and auditable when they differ"
+    }
+  ]
+}
