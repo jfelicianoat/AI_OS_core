@@ -10,7 +10,9 @@ CORE, BROKER_TOKEN, AGORA_TOKEN = sys.argv[1], sys.argv[2], sys.argv[3]
 BROKER = "http://192.168.1.52:8765"
 AGORA = "https://127.0.0.1:8741"
 run = uuid.uuid4().hex[:8]
-core = httpx.Client(base_url=CORE, timeout=30)
+import os
+core = httpx.Client(base_url=CORE, timeout=30,  # AI_OS_API_TOKEN opcional: si Core lo exige, se manda el mismo Bearer
+                    headers={"Authorization": f"Bearer {os.environ['AI_OS_API_TOKEN']}"} if os.environ.get("AI_OS_API_TOKEN") else {})
 broker = httpx.Client(base_url=BROKER, timeout=30, headers={"X-Admin-Token": BROKER_TOKEN})
 agora = httpx.Client(base_url=AGORA, timeout=30, verify="C:/Agora/pki/ca.crt",
                      headers={"Authorization": f"Bearer {AGORA_TOKEN}"})
@@ -112,6 +114,10 @@ plan = post("/api/v1/planner/proposals", {"goal_id": gid, "requested_autonomy": 
     {"task_id": "proyectar_agora", "title": "Leer tablero", "description": "Snapshot", "assigned_service": "agora_board"}]}).json()
 decision = post(f"/api/v1/planner/proposals/{plan['proposal_id']}/decision", {"applicable_ceilings": ["A3", "A4"]}).json()
 step("plan aprobado para despacho en A3", decision["approved_for_dispatch"] and decision["effective_autonomy"] == "A3", decision["reasons"][0])
+forged = post("/api/v1/planner/proposals", {"goal_id": gid, "requested_autonomy": "A3",
+                                            "policy_decision": {"authorization": "ALLOW", "executable": True},
+                                            "tasks": [{"task_id": "x", "title": "x", "description": "x", "assigned_service": "ai_broker"}]})
+step("plan con ALLOW no emitido por el Core rechazado (0.2.1)", forged.status_code == 400, str(forged.status_code))
 
 # 8. Restore antes de enviar: not_seen -> se puede enviar
 st = post("/api/v1/operations/status", {"operation_id": op_id, "target_service_id": "ai_broker"}).json()
@@ -141,7 +147,7 @@ step("broker termina la tarea", t["status"] == "completed", t["status"])
 result = t.get("result") or {}
 answer = result.get("assistant_content") or result.get("content") or json.dumps(result)[:300]
 print("      respuesta:", str(answer)[:300].replace("\n", " "))
-print("      modelo:", result.get("model") or result.get("effective_model") or t.get("model"))
+print("      modelo:", result.get("model_used") or result.get("models_used"))
 result_digest = hashlib.sha256(str(answer).encode()).hexdigest()
 
 # 10. Recibo final, evento canónico, presupuesto consumido
@@ -149,6 +155,8 @@ post("/api/v1/operations/receipts", {"operation_id": op_id, "receiver_service": 
                                      "result_digest": result_digest, "evidence": {"task_id": task_id}})
 st = post("/api/v1/operations/status", {"operation_id": op_id, "target_service_id": "ai_broker"}).json()
 step("restore tras éxito: reconstruct_state_no_resend", st["recommended_action"] == "reconstruct_state_no_resend")
+late_receipt = post("/api/v1/operations/receipts", {"operation_id": op_id, "receiver_service": "ai_broker", "status": "not_seen"})
+step("recibo tardío no reabre una operación ya terminada (0.2.1)", late_receipt.status_code == 409, str(late_receipt.status_code))
 res_id = f"broker_task:{task_id}"
 for rev, status in ((1, "queued"), (2, "completed")):
     seq += 1

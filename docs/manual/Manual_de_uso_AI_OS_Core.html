@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Manual de uso · AI OS Core 0.2.0</title>
+<title>Manual de uso · AI OS Core 0.2.1</title>
 <style>
   @page { size: A4; margin: 18mm 16mm 20mm 16mm;
-    @bottom-center { content: "AI OS Core 0.2.0 · Manual de uso · página " counter(page); font: 8pt "Segoe UI", sans-serif; color: #777; } }
+    @bottom-center { content: "AI OS Core 0.2.1 · Manual de uso · página " counter(page); font: 8pt "Segoe UI", sans-serif; color: #777; } }
   :root { --ink:#1d2330; --muted:#5b6475; --accent:#1f5fa8; --accent-soft:#e8f0fa; --ok:#1d7a46; --warn:#a15c00; --bad:#b3261e; --line:#d8dde6; --code:#f4f6f9; }
   html { font-size: 10pt; }
   body { font-family: "Segoe UI", "Calibri", sans-serif; color: var(--ink); line-height: 1.5; margin: 0; background: #fff; }
@@ -54,9 +54,9 @@
   <h1>AI OS Core</h1>
   <div class="sub">Manual de uso del plano de control: qué es, para qué sirve, cómo se arranca y todos los flujos que ofrece su API, con ejemplos listos para copiar.</div>
   <div class="meta">
-    Versión del software: <b>0.2.0</b> · Fecha: 7 de octubre de 2026<br>
-    Verificado contra: AI Broker (contrato 2.11) en el PC IA y tablero de Agora 0.2.0 en este equipo<br>
-    Suite automática: 51 pruebas en verde · Recorrido E2E real: 29 comprobaciones superadas
+    Versión del software: <b>0.2.1</b> · Fecha: 18 de octubre de 2026<br>
+    Verificado contra: AI Broker (contrato 2.11) en el PC IA, tablero de Agora, servicio de Athena, datos de Model_Drift y de Gestión Tareas IA<br>
+    Suite automática: 66 pruebas en verde · Recorridos E2E reales: 31 (Broker + Agora), 33 (Model_Drift + Athena + Gestión Tareas IA) y 18 (ChatyGPT + Knowledge Orchestrator + Trading AI + Local AI Lab)
   </div>
 </section>
 
@@ -161,27 +161,35 @@ python -m uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8000</pre>
   <li>Si no das un identificador, Core lo genera con prefijo: <code>goal_…</code>, <code>obj_…</code>, <code>resv_…</code>, <code>ctx_…</code>, <code>plan_…</code>.</li>
   <li>Los listados paginados aceptan <code>limit</code> (1–100, por defecto 50) y <code>offset</code>, y devuelven <code>{items, total_returned, limit, offset}</code> con orden estable.</li>
 </ul>
+<h3>Autenticación</h3>
+<p>Si arrancas Core con la variable <code>AI_OS_API_TOKEN</code>, toda la API exige la cabecera <code>Authorization: Bearer &lt;token&gt;</code>; sin ella o con otro valor responde <b>401</b>. <code>/health</code>, <code>/ready</code> y la documentación (<code>/docs</code>, <code>/redoc</code>, <code>/openapi.json</code>) siguen públicas para que un lanzador sepa si hay algo escuchando. Sin la variable, la API queda abierta como en 0.2.0. Una petición rechazada por token no llega a reservar su clave de idempotencia.</p>
+<p><b>Un token por app</b>: con <code>AI_OS_API_TOKENS="chatygpt=token1;athena=token2"</code> cada token identifica a su app. Si esa app declara ser otra, en la cabecera <code>X-Principal-Id</code> o en el campo <code>principal_id</code> del cuerpo, Core responde <b>403</b> <code>PrincipalMismatch</code>; si no declara nada, Core usa el nombre del token, también para separar las claves de idempotencia. Puede convivir con <code>AI_OS_API_TOKEN</code>.</p>
+<pre>set AI_OS_API_TOKEN=pon-aqui-un-secreto-largo
+run.bat app
+curl http://127.0.0.1:8000/api/v1/goals -H "Authorization: Bearer pon-aqui-un-secreto-largo"</pre>
 <h3>Códigos de estado</h3>
 <table>
   <tr><th>Código</th><th>Significado en Core</th></tr>
   <tr><td>200 / 201</td><td>Lectura correcta / recurso creado</td></tr>
-  <tr><td>400</td><td>Valor inválido: estado, fecha, operador, nivel, URL bloqueada por SSRF, referencia a un padre inexistente</td></tr>
-  <tr><td>403</td><td>Denegado: aprobación caducada, revocada, agotada o de otro digest; principal sin scope o sin clearance suficiente</td></tr>
+  <tr><td>400</td><td>Valor inválido: estado, fecha, operador, nivel, URL bloqueada por SSRF, referencia a un padre inexistente, entero que no cabe en 64 bits, decisión ALLOW no emitida por Core</td></tr>
+  <tr><td>401</td><td>Falta el token de Core o no es válido (sólo con <code>AI_OS_API_TOKEN</code> definido)</td></tr>
+  <tr><td>403</td><td>Token de una app que declara ser otra (<code>PrincipalMismatch</code>). Denegado: aprobación caducada, revocada, agotada o de otro digest; principal sin scope o sin clearance suficiente</td></tr>
   <tr><td>404</td><td>No existe lo que pides</td></tr>
-  <tr><td>409</td><td>Choca con lo ya registrado: id repetido, revisión obsoleta, saldo insuficiente, reserva ya consumida, clave de idempotencia reutilizada o en curso</td></tr>
+  <tr><td>409</td><td>Choca con lo ya registrado: id repetido, revisión obsoleta, saldo insuficiente, reserva ya consumida, clave de idempotencia reutilizada o en curso, recibo que retrocede, dato de otro propietario, <code>event_id</code> reutilizado con otro contenido</td></tr>
   <tr><td>422</td><td>Falta un campo obligatorio o tiene el tipo equivocado (validación del esquema)</td></tr>
 </table>
 <h3>Formato de error</h3>
 <pre>{
   "error":  { "type": "Conflict", "message": "Goal 'g1' ya existe.", "details": {} },
-  "detail": "…"        // sólo en errores HTTP genéricos, por compatibilidad
+  "detail": "…"        // en errores HTTP genéricos y en los 422 (lista de FastAPI), por compatibilidad
 }</pre>
+<p>Desde 0.2.1 los <b>422</b> de validación usan el mismo sobre: <code>error.type = "RequestValidationError"</code>, <code>error.message</code> con campo y motivo, y <code>detail</code> conserva la lista original.</p>
 <p>Los ejemplos de este manual usan <code>curl</code>. En PowerShell, sustituye por <code>Invoke-RestMethod -Method Post -Uri … -ContentType 'application/json' -Body '…'</code>, o usa Swagger UI.</p>
 
 <h2>5. Flujo: comprobar que el servicio está vivo</h2>
 <p><span class="pill get">GET</span> <code>/health</code> responde siempre que el proceso viva; <span class="pill get">GET</span> <code>/ready</code> además abre la base y devuelve la versión de esquema (503 si no puede).</p>
 <pre>curl http://127.0.0.1:8000/health
-{"status":"healthy","service":"ai_os_core","version":"0.2.0"}
+{"status":"healthy","service":"ai_os_core","version":"0.2.1"}
 
 curl http://127.0.0.1:8000/ready
 {"status":"ready","service":"ai_os_core","schema_version":2}</pre>
@@ -206,7 +214,7 @@ curl http://127.0.0.1:8000/ready
 <pre>{ "service_id": "ai_broker", "name": "AI Broker", "base_url": "http://192.168.1.52:8765",
   "version": "2.11", "health_status": "healthy", "capabilities": ["llm.task"],
   "metadata": { "auth_header": "X-Admin-Token" } }</pre>
-  Repetir el mismo <code>service_id</code> actualiza el registro (es idempotente). <code>health_status</code>: <code>healthy</code>, <code>degraded</code>, <code>down</code>, <code>unknown</code>.</li>
+  Repetir el mismo <code>service_id</code> actualiza el registro (es idempotente). <code>health_status</code>: <code>healthy</code>, <code>degraded</code>, <code>down</code>, <code>unknown</code>; cualquier otro valor → 400 (antes se convertía en <code>healthy</code> sin avisar). <code>service_id</code> y <code>name</code> no pueden ir vacíos.</li>
   <li><b>Declarar capacidades</b> <span class="pill post">POST</span> <code>/api/v1/capabilities</code> con <code>capability_id</code>, <code>name</code>, <code>description</code>, <code>provider_service_id</code> y opcionalmente <code>input_schema</code>/<code>output_schema</code>. El proveedor debe estar registrado (si no, 400).</li>
   <li><b>Consultar</b>: <span class="pill get">GET</span> <code>/api/v1/services</code>, <code>/api/v1/services/{id}</code>, <code>/api/v1/capabilities/{id}</code>.</li>
 </ol>
@@ -262,8 +270,8 @@ curl http://127.0.0.1:8000/ready
   "context": { "data_classification": "internal", "estimated_cost": 0.5 } }
 → { "authorization": "ALLOW", "constraints": {"max_output_tokens": 600},
     "obligations": ["audit_trace"], "matched_policy_refs": ["pol_base"],
-    "unknown_inputs": [], "executable": true }</pre>
-  Con <code>confidential</code> el resultado es REQUIRE_APPROVAL; sin <code>estimated_cost</code>, INDETERMINATE con <code>unknown_inputs: ["estimated_cost"]</code>. Cada evaluación deja una traza de decisión con el hash del contexto.</li>
+    "unknown_inputs": [], "executable": true, "trace_id": "trace_a19e27f268a6" }</pre>
+  Con <code>confidential</code> el resultado es REQUIRE_APPROVAL; sin <code>estimated_cost</code>, INDETERMINATE con <code>unknown_inputs: ["estimated_cost"]</code>. Cada evaluación deja una traza de decisión con el hash del contexto; su <code>trace_id</code> viaja en la respuesta y es lo que el planificador exige para aceptar un ALLOW (sección 16).</li>
   <li><b>Revisar</b> <span class="pill get">GET</span> <code>/api/v1/policies</code> o <code>/api/v1/policies?scope=broker:invoke</code>.</li>
 </ol>
 
@@ -292,7 +300,7 @@ curl http://127.0.0.1:8000/ready
   <li><b>o Liberar</b> <span class="pill post">POST</span> <code>/api/v1/budget/release</code>: devuelve el importe al disponible. Liberar una consumida → 409; una inexistente → 404; dos veces → sin efecto.</li>
   <li><b>Consultar</b>: <span class="pill get">GET</span> <code>/api/v1/budget/accounts/{id}</code> → <code>balance</code>, <code>reserved</code>, <code>available</code>; <span class="pill get">GET</span> <code>/api/v1/budget/reservations/{id}</code> → estado <code>reserved</code>, <code>consumed</code>, <code>released</code> o <code>expired</code>.</li>
 </ol>
-<div class="note"><b>Caducidad</b>Una reserva con <code>expires_at</code> vencido y sin consumir se marca <code>expired</code> y su importe vuelve al disponible la próxima vez que se reserva o consume en esa cuenta.</div>
+<div class="note"><b>Caducidad</b>Una reserva con <code>expires_at</code> vencido y sin consumir se marca <code>expired</code> y su importe vuelve al disponible en cuanto se toca la cuenta: al reservar y también al <b>consultar</b> la cuenta o la reserva (antes las consultas seguían mostrando el saldo retenido). Una reserva cuyo <code>expires_at</code> ya pasó al crearla → 400.</div>
 
 <h2 class="newpage">11. Flujo: bandeja de eventos y proyección canónica</h2>
 <p>Los servicios informan a Core de los cambios mediante <b>eventos</b>. Cada productor numera sus eventos por flujo (<code>producer_id</code> + <code>stream_id</code> + <code>stream_epoch</code>) con <code>source_sequence</code> consecutiva. Core guarda todos los eventos y mantiene la <b>proyección canónica</b> de cada recurso: el último <code>full_state</code> válido de mayor revisión.</p>
@@ -316,8 +324,12 @@ curl http://127.0.0.1:8000/ready
 <table>
   <tr><th>Caso</th><th>Respuesta de Core</th></tr>
   <tr><td>Reentrega del mismo <code>event_id</code> (reintento de red)</td><td>200 con <code>duplicate: true</code>; no se reprocesa.</td></tr>
+  <tr><td>Mismo <code>event_id</code> con otro contenido (payload, revisión, digest…)</td><td>409: no es una reentrega, es divergencia.</td></tr>
   <tr><td>Otro evento con una secuencia ya ocupada</td><td>409.</td></tr>
-  <tr><td>Salto de secuencia (llega la 5 tras la 1)</td><td>Se registra un REPLAY_GAP y el evento va a cuarentena (C05).</td></tr>
+  <tr><td>Salto de secuencia (llega la 5 tras la 1)</td><td>Se registra un REPLAY_GAP y el evento va a cuarentena (C05). Mientras falte la 2, todo lo posterior también espera en cuarentena.</td></tr>
+  <tr><td>Llega por fin la secuencia que faltaba</td><td>Se aplica y Core <b>reanuda</b> en orden los eventos que esperaban; el REPLAY_GAP pasa a resuelto y desaparece de <code>/events/gaps</code>.</td></tr>
+  <tr><td>Evento de un <code>stream_epoch</code> anterior al vigente</td><td>Se guarda sólo para auditoría (<code>reason</code> <code>STALE_EPOCH</code>); no toca la proyección.</td></tr>
+  <tr><td><code>source_sequence</code> &lt; 1 o <code>stream_epoch</code> &lt; 0</td><td>422.</td></tr>
   <tr><td>Dos <code>full_state</code> de la misma revisión con distinto <code>state_digest</code></td><td>El segundo va a cuarentena (C03).</td></tr>
   <tr><td><code>full_state</code> tardío de revisión menor</td><td>Se guarda para auditoría pero la proyección no retrocede (C02).</td></tr>
 </table>
@@ -325,7 +337,7 @@ curl http://127.0.0.1:8000/ready
 <h2>12. Flujo: restore y recibos de operación</h2>
 <p>Tras una caída, la pregunta es “¿reenvío o no?”. Los receptores registran <b>recibos</b> del estado de cada operación y Core traduce ese estado en una acción recomendada.</p>
 <ol class="flow">
-  <li><b>El receptor informa</b> <span class="pill post">POST</span> <code>/api/v1/operations/receipts</code> con <code>{"operation_id":"op_42","receiver_service":"ai_broker","status":"in_progress","evidence":{"task_id":"task_…"}}</code>. Se puede reenviar con el estado nuevo.</li>
+  <li><b>El receptor informa</b> <span class="pill post">POST</span> <code>/api/v1/operations/receipts</code> con <code>{"operation_id":"op_42","receiver_service":"ai_broker","status":"in_progress","evidence":{"task_id":"task_…"}}</code>. Se puede reenviar con el estado nuevo, pero el estado <b>sólo avanza</b> (<code>not_seen</code> → <code>accepted</code> → <code>in_progress</code> → terminal): retroceder, cambiar un estado terminal (<code>succeeded</code>, <code>failed_terminal</code>, <code>cancelled</code>) o que otro <code>receiver_service</code> reescriba el recibo → <b>409</b>. Repetir el mismo estado es idempotente.</li>
   <li><b>Quien va a reenviar consulta</b> <span class="pill post">POST</span> <code>/api/v1/operations/status</code> con <code>{"operation_id":"op_42","target_service_id":"ai_broker"}</code>.</li>
 </ol>
 <table>
@@ -353,8 +365,8 @@ curl http://127.0.0.1:8000/ready
 <pre>{ "model_id": "gemma4:12b", "capability_id": "llm.task", "version": "1",
   "source_system": "model_drift", "evaluation_verdict": "CERTIFIED",
   "is_applicable": true, "revision": 5 }</pre>
-  Veredictos: <code>CERTIFIED</code>, <code>REJECTED</code>, <code>INDETERMINATE</code>, <code>EXPIRED</code>. Una revisión igual o mayor actualiza; una menor (llegada tarde) → <b>409</b> y la proyección no cambia.</li>
-  <li><b>Consultar</b> <span class="pill get">GET</span> <code>/api/v1/certifications</code> o <code>/api/v1/certifications/{model_id}/{capability_id}/{version}</code>.</li>
+  Veredictos: <code>CERTIFIED</code>, <code>REJECTED</code>, <code>INDETERMINATE</code>, <code>EXPIRED</code>. Una revisión igual o mayor actualiza; una menor (llegada tarde) → <b>409</b> y la proyección no cambia. Sólo el <code>source_system</code> que la registró puede reescribirla (otro → 409).</li>
+  <li><b>Consultar</b> <span class="pill get">GET</span> <code>/api/v1/certifications</code> o <code>/api/v1/certifications/{model_id}/{capability_id}/{version}</code>. El <code>model_id</code> puede llevar barras, como los modelos del Broker: <code>/api/v1/certifications/ollama/local/muse-glimmer:latest/suite:facturacion/1</code>.</li>
 </ol>
 
 <h2>15. Flujo: paquetes de contexto</h2>
@@ -384,14 +396,14 @@ curl http://127.0.0.1:8000/ready
 <ol class="flow">
   <li><b>Proponer</b> <span class="pill post">POST</span> <code>/api/v1/planner/proposals</code>
 <pre>{ "goal_id": "goal_tfm", "requested_autonomy": "A3",
-  "policy_decision": { "authorization": "ALLOW", "executable": true },
+  "policy_decision": { …respuesta íntegra de /policies/evaluate, con su trace_id… },
   "tasks": [
     { "task_id": "resumir", "title": "Resumir fuentes", "description": "Tarea LLM",
       "assigned_service": "ai_broker", "requires_human_approval": false, "estimated_duration_sec": 120 },
     { "task_id": "publicar", "title": "Publicar", "description": "Acción irreversible",
       "assigned_service": "agora", "requires_human_approval": true } ],
   "principal_id": "athena", "principal_scopes": ["planner:propose"] }</pre>
-  La meta debe existir (404), hace falta al menos una tarea con <code>task_id</code> únicos (400) y el principal necesita el scope <code>planner:propose</code> (403).</li>
+  La meta debe existir (404), hace falta al menos una tarea con <code>task_id</code> únicos (400) y el principal necesita el scope <code>planner:propose</code> (403). Un <code>ALLOW</code> sólo se acepta si trae el <code>trace_id</code> de una evaluación real de Core y coincide con ella (resultado y <code>executable</code>); uno escrito a mano o alterado → <b>400</b>.</li>
   <li><b>Decidir</b> <span class="pill post">POST</span> <code>/api/v1/planner/proposals/{id}/decision</code> con <code>{"applicable_ceilings":["A3","A4"]}</code>.
 <pre>→ { "approved_for_dispatch": true, "effective_autonomy": "A3",
     "reasons": ["Aprobado para despacho con nivel efectivo A3."] }</pre></li>
@@ -400,7 +412,7 @@ curl http://127.0.0.1:8000/ready
 <ul>
   <li>La autonomía efectiva es el <b>mínimo</b> entre la solicitada y todos los techos. Ninguna capa la eleva.</li>
   <li>Un techo ilegible (p. ej. <code>"A1x"</code>) → 400: ignorarlo subiría la autonomía.</li>
-  <li>No se despacha si la política adjunta no es ALLOW, si no es ejecutable, si el nivel efectivo es A0, o si alguna tarea requiere aprobación humana y el nivel es A0–A1. Todas las razones aparecen en <code>reasons</code>.</li>
+  <li>No se despacha si no hay decisión de política, si no es ALLOW, si no es ejecutable, si el nivel efectivo es A0, o si alguna tarea requiere aprobación humana y el nivel es A0–A1. Todas las razones aparecen en <code>reasons</code>.</li>
 </ul>
 <div class="note warn"><b>Importante</b>Core decide si un plan <i>puede</i> despacharse; no lo despacha. Crear las tareas en Gestión Tareas IA o las tarjetas en Agora es responsabilidad de quien pidió la decisión.</div>
 
@@ -418,7 +430,7 @@ curl http://127.0.0.1:8000/ready
      -d "{\"title\":\"Entregar el TFM\",\"description\":\"…\"}"</pre>
 
 <h2 class="newpage">18. Recorrido completo con el Broker y Agora</h2>
-<p>Este es el flujo que se ejecutó de verdad el 7 de octubre de 2026 contra el AI Broker del PC IA (<code>http://192.168.1.52:8765</code>, contrato 2.11) y el tablero de Agora de este equipo (<code>https://127.0.0.1:8741</code>). Superó 29 comprobaciones. Sirve como plantilla para integrar cualquier cliente.</p>
+<p>Este es el flujo que se ejecutó de verdad el 7 de octubre de 2026 (y de nuevo el 18 de octubre con 0.2.1) contra el AI Broker del PC IA (<code>http://192.168.1.52:8765</code>, contrato 2.11) y el tablero de Agora de este equipo (<code>https://127.0.0.1:8741</code>). Superó 31 comprobaciones. Sirve como plantilla para integrar cualquier cliente.</p>
 <ol class="flow">
   <li><b>Comprobar Core</b>: <code>/health</code> y <code>/ready</code>.</li>
   <li><b>Registrar los servicios reales</b>: <code>ai_broker</code> (IP privada de la LAN, admitida) y <code>agora_board</code> (loopback https), y la capacidad <code>llm.task</code>. Se comprueba que una capacidad de un proveedor inexistente se rechaza.</li>
@@ -426,15 +438,33 @@ curl http://127.0.0.1:8000/ready
   <li><b>Definir y evaluar políticas</b> del scope <code>broker:invoke</code>: datos internos y baratos → ALLOW ejecutable con obligación <code>audit_trace</code> y tope de 600 tokens; datos confidenciales → REQUIRE_APPROVAL; sin coste → INDETERMINATE.</li>
   <li><b>Reservar presupuesto</b> (0,5 sobre una cuenta de 2).</li>
   <li><b>Calcular el digest</b> del cuerpo exacto que se enviará al Broker, conceder una aprobación <i>exact_action</i> de un uso con ese digest y consumirla. Un digest manipulado se rechaza con 403.</li>
-  <li><b>Fijar el contexto</b> en un ContextPackage y <b>registrar el plan</b> (Broker + Agora); la decisión sale aprobada en A3.</li>
+  <li><b>Fijar el contexto</b> en un ContextPackage y <b>registrar el plan</b> (Broker + Agora); la decisión sale aprobada en A3. Un plan con un ALLOW no emitido por Core se rechaza.</li>
   <li><b>Restore previo</b>: la operación aún no existe → <code>retry_allowed</code>; se registra el recibo <code>accepted</code>.</li>
   <li><b>Invocar al Broker</b> (<code>POST /api/v1/tasks</code> con cabecera <code>X-Admin-Token</code>, clave de idempotencia estable y <code>risk.data_classification</code> tomado del contexto evaluado). Recibo <code>in_progress</code> con el <code>task_id</code> → <code>follow_up_no_resend</code>. Sondeo hasta <code>completed</code>.</li>
-  <li><b>Cerrar</b>: recibo <code>succeeded</code> con el hash del resultado → <code>reconstruct_state_no_resend</code>; eventos <code>full_state</code> de la tarea (un evento tardío no hace retroceder la proyección); consumo del presupuesto; relación objetivo → tarea en el grafo; identity binding operación → <code>task_id</code>; objetivo a <code>completed</code>.</li>
+  <li><b>Cerrar</b>: recibo <code>succeeded</code> con el hash del resultado → <code>reconstruct_state_no_resend</code>; eventos <code>full_state</code> de la tarea (un evento tardío no hace retroceder la proyección); consumo del presupuesto; relación objetivo → tarea en el grafo; identity binding operación → <code>task_id</code>; objetivo a <code>completed</code>. Un recibo <code>not_seen</code> tardío ya no puede reabrir la operación (409).</li>
   <li><b>Idempotencia del Broker</b>: reenviar la misma petición devuelve la misma tarea, no una nueva.</li>
   <li><b>Agora (sólo lectura)</b>: se lee el tablero y los perfiles con el token Bearer del tablero y se proyecta una foto en Core como <code>full_state</code> de <code>agora:board</code>.</li>
 </ol>
 <p>Respuesta real obtenida del Broker: <i>“Un plano de control sirve para coordinar y gestionar los recursos y operaciones del sistema distribuido, asegurando su correcto funcionamiento y comunicación entre sus componentes.”</i></p>
-<div class="note"><b>Cómo repetirlo</b>El guion es <code>python scriptse2e_broker_agora.py &lt;url_core&gt; &lt;token_broker&gt; &lt;token_agora&gt;</code>. Necesita el PC IA encendido, el tablero de Agora arrancado (<code>C:\Agora\Agora Tablero.cmd</code>) y el certificado <code>C:\Agora\pki\ca.crt</code>. El Broker cambia su token en cada arranque: si da 403, pide el token nuevo. En Agora no se crean tarjetas, porque eso encargaría trabajo real al PC IA.</div>
+<div class="note"><b>Cómo repetirlo</b>El guion es <code>python scripts\e2e_broker_agora.py &lt;url_core&gt; &lt;token_broker&gt; &lt;token_agora&gt;</code>. Necesita el PC IA encendido, el tablero de Agora arrancado (<code>C:\Agora\Agora Tablero.cmd</code>) y el certificado <code>C:\Agora\pki\ca.crt</code>. El Broker cambia su token en cada arranque: si da 403, pide el token nuevo. En Agora no se crean tarjetas, porque eso encargaría trabajo real al PC IA.</div>
+
+<h3>Segundo recorrido: Model_Drift, Athena y Gestión Tareas IA</h3>
+<p>Ejecutado el 18 de octubre de 2026 con Core protegido por token (33 comprobaciones): <code>python scripts\e2e_ecosistema.py &lt;url_core&gt; &lt;url_athena&gt; &lt;token_athena&gt; &lt;model_drift.sqlite&gt; &lt;copia_gti.sqlite3&gt; &lt;carpeta_trabajo&gt;</code>.</p>
+<ol class="flow">
+  <li><b>Model_Drift → certificaciones</b>: se leen (sólo lectura) sus resultados de <code>pass_rate</code> y se proyectan como certificaciones. Regla del recorrido: media ≥ 0,8 con al menos 3 casos aplicables → CERTIFIED; &lt; 0,5 → REJECTED; si no, INDETERMINATE. Resultado real: <code>muse-glimmer:latest</code> CERTIFIED, <code>lfm2:24b</code> REJECTED, el resto INDETERMINATE. Una política “sólo modelos certificados” autoriza el primero y niega los demás; otra app no puede reescribir esos veredictos.</li>
+  <li><b>Athena</b> (servicio en <code>127.0.0.1:8771</code>, sobre el Broker real): Core evalúa su política (sólo lectura → ALLOW; escritura → REQUIRE_APPROVAL; <code>exec=allow</code> → DENY), reserva presupuesto, aprueba el plan y <b>elige el modelo</b> entre los que ofrece Athena según las certificaciones: <code>muse-glimmer:latest</code> sí, <code>qwen3.8:27b</code> y <code>lfm2:24b</code> no. El run (perfil <code>questions</code>) se lanza con clave de idempotencia, sus estados entran en el inbox y termina <code>completed</code>; el historial de Athena confirma que respondió el modelo elegido y que leyó las 4 líneas del fichero sin modificarlo.</li>
+  <li><b>Gestión Tareas IA</b>: desde una <b>copia</b> de su base, el proyecto pasa a meta y las 76 tareas a recursos y eventos <code>full_state</code>; el estado canónico de las 76 coincide con el origen y un cambio posterior actualiza la proyección.</li>
+</ol>
+<h3>Tercer recorrido: ChatyGPT, Knowledge Orchestrator, Trading AI y Local AI Lab</h3>
+<p><code>python scripts\e2e_resto_apps.py &lt;url_core&gt; &lt;carpeta_con_copias&gt;</code> (18 comprobaciones, verde el 18 de octubre con token común y con tokens por app). Usa <b>copias</b> de sus bases abiertas en sólo lectura.</p>
+<ul>
+  <li><b>ChatyGPT</b>: sus 4 293 tareas reales al Broker entran como recibos. Core recomienda no reenviar las 4 277 completadas, no reenviar sin nueva decisión las 11 fallidas y la cancelada, y sí reenviar las 4 que nunca llegaron al Broker. Un recibo tardío no reabre una completada. Sus 34 conversaciones se proyectan idénticas.</li>
+  <li><b>Knowledge Orchestrator</b>: sus 235 tareas al Broker, incluidas 14 en cola y 3 en curso, para las que Core manda seguir sin reenviar. Sus 122 flujos se proyectan idénticos.</li>
+  <li><b>Trading AI desktop</b>: 11 backtests proyectados; reenviar uno con otra huella en la misma revisión va a cuarentena y la proyección no cambia.</li>
+  <li><b>Local AI Lab</b>: 10 registros de experimentos proyectados idénticos.</li>
+  <li><b>LARM</b> no entra: hoy sólo es especificación y prompts, no hay programa que gobernar.</li>
+</ul>
+<div class="note"><b>Lo que esto no prueba</b>Ninguna app llama hoy a Core por su cuenta: en los dos recorridos el guion hace de cliente. Conectar una app es trabajo en esa app. La API de Athena no expone el texto final de su respuesta, sólo la evidencia (ficheros leídos, modelo, verificación).</div>
 
 <h2>19. Configuración</h2>
 <table>
@@ -442,6 +472,8 @@ curl http://127.0.0.1:8000/ready
   <tr><td><code>AI_OS_DB_PATH</code></td><td><code>%LOCALAPPDATA%\AIOSCore\data\ai_os_core.db</code></td><td>Fichero SQLite (<code>:memory:</code> para pruebas)</td></tr>
   <tr><td><code>AI_OS_SQLITE_SYNCHRONOUS</code></td><td><code>FULL</code></td><td>Durabilidad de SQLite</td></tr>
   <tr><td><code>AI_OS_SQLITE_TIMEOUT_MS</code></td><td><code>5000</code></td><td>Espera máxima ante bloqueo de escritura</td></tr>
+  <tr><td><code>AI_OS_API_TOKEN</code></td><td>(vacío: API abierta)</td><td>Token Bearer que exige toda la API salvo <code>/health</code>, <code>/ready</code> y la documentación</td></tr>
+  <tr><td><code>AI_OS_API_TOKENS</code></td><td>(vacío)</td><td>Un token por app: <code>app=token;otra=token2</code>. Fija el principal de cada llamada</td></tr>
   <tr><td><code>AI_OS_ALLOWED_HOSTS</code></td><td>(vacío)</td><td>Hosts DNS extra admitidos en el registro, separados por comas</td></tr>
   <tr><td><code>AI_OS_ALLOW_PRIVATE_NETS</code></td><td><code>true</code></td><td>Admitir IPs de redes privadas al registrar servicios</td></tr>
   <tr><td><code>AI_OS_ENV</code>, <code>AI_OS_HOST</code>, <code>AI_OS_PORT</code></td><td><code>development</code>, <code>127.0.0.1</code>, <code>8000</code></td><td>Informativas; el puerto real lo fija uvicorn</td></tr>
@@ -449,7 +481,7 @@ curl http://127.0.0.1:8000/ready
 
 <h2 class="newpage">20. Pruebas y verificación</h2>
 <pre>run.bat tests                         :: o bien
-python -m pytest -q                   :: 51 pruebas
+python -m pytest -q                   :: 66 pruebas
 python -m pytest tests/integration/test_api_regressions.py -v</pre>
 <table>
   <tr><th>Fichero</th><th>Cubre</th></tr>
@@ -459,8 +491,9 @@ python -m pytest tests/integration/test_api_regressions.py -v</pre>
   <tr><td><code>tests/integration/test_p02_p15_advanced.py</code></td><td>C09, C12, C21, C22, certificaciones, planner</td></tr>
   <tr><td><code>tests/integration/test_api_smoke.py</code></td><td>Arranque, <code>/ready</code> y CRUD básico por HTTP</td></tr>
   <tr><td><code>tests/integration/test_api_regressions.py</code></td><td>Carreras reales de C01, C07 y C09 (peticiones simultáneas), duplicados, fail-open, SSRF y las rutas nuevas de 0.2.0</td></tr>
+  <tr><td><code>tests/integration/test_api_regressions_0_2_1.py</code></td><td>Revisión 0.2.1: enteros fuera de rango, recibos que retroceden, caducidad en lecturas, reanudación tras REPLAY_GAP, epoch anterior, <code>event_id</code> divergente, propietario de certificaciones y ALLOW falsificado en el planificador, token opcional, tokens por app y certificaciones con barras en el modelo</td></tr>
 </table>
-<p>Los tests usan siempre una base temporal (<code>tests/__init__.py</code>); no tocan la base real. Las pruebas de carrera se validaron quitando el arreglo: sin él, fallan.</p>
+<p>Los tests usan siempre una base temporal (<code>tests/__init__.py</code>); no tocan la base real. Las pruebas de carrera se validaron quitando el arreglo: sin él, fallan. Las de 0.2.1 se validaron igual, una a una contra el código anterior.</p>
 
 <h2>21. Errores frecuentes y cómo resolverlos</h2>
 <table>
@@ -471,14 +504,18 @@ python -m pytest tests/integration/test_api_regressions.py -v</pre>
   <tr><td>INDETERMINATE inesperado</td><td>Falta un dato o tiene un tipo no comparable</td><td>Mirar <code>unknown_inputs</code> y completar el contexto</td></tr>
   <tr><td>403 al consumir una aprobación</td><td>Caducada, revocada, agotada o digest distinto</td><td><code>GET /approvals/{id}/status</code></td></tr>
   <tr><td>409 <code>IdempotencyInProgress</code></td><td>Reintento mientras la primera petición sigue en curso</td><td>Esperar <code>Retry-After</code> y repetir</td></tr>
-  <tr><td>Un evento no cambia la versión canónica</td><td>No es <code>full_state</code>, es de revisión menor o está en cuarentena</td><td><code>GET /events/quarantine</code> y <code>/events/gaps</code></td></tr>
+  <tr><td>Un evento no cambia la versión canónica</td><td>No es <code>full_state</code>, es de revisión menor, de un epoch anterior o espera en cuarentena a que llegue una secuencia que falta</td><td><code>GET /events/quarantine</code> y <code>/events/gaps</code>; reenviar la secuencia perdida</td></tr>
+  <tr><td>400 al proponer un plan con ALLOW</td><td>La <code>policy_decision</code> no viene de <code>/policies/evaluate</code> o se modificó</td><td>Pasar la respuesta de la evaluación tal cual, con su <code>trace_id</code></td></tr>
+  <tr><td>409 al registrar un recibo</td><td>El estado retrocede, ya era terminal o lo envía otro receptor</td><td><code>POST /operations/status</code> para ver el recibo vigente</td></tr>
   <tr><td>El servicio no arranca: puerto ocupado</td><td>Ya hay otra instancia en el 8000</td><td>Cerrarla o arrancar con <code>--port 8010</code></td></tr>
 </table>
 
 <h2>22. Límites conocidos</h2>
-<div class="note bad"><b>Sin autenticación</b>Core no comprueba quién llama: <code>X-Principal-Id</code>, los scopes y el clearance los declara el propio cliente en la petición. Está pensado para escuchar sólo en <code>127.0.0.1</code>. No lo expongas en la red sin poner delante un proxy con autenticación.</div>
+<div class="note bad"><b>Alcance de la autenticación</b>Con tokens por app (<code>AI_OS_API_TOKENS</code>) Core sabe quién llama y no deja que una app se haga pasar por otra. Lo que <i>no</i> controla aún es qué puede hacer cada una: los scopes y el clearance de planificador y contexto siguen viniendo en la petición. Con el token común (<code>AI_OS_API_TOKEN</code>) todas las apps son indistinguibles, y sin ninguna variable no hay comprobación. Escucha en <code>127.0.0.1</code>; no lo expongas en la red sin HTTPS delante.</div>
 <ul>
-  <li>Un REPLAY_GAP se registra y se pone en cuarentena, pero no hay todavía endpoint para marcarlo resuelto ni flujo automático de snapshot y nueva línea base (§6.4 de la especificación).</li>
+  <li>Un REPLAY_GAP se resuelve sólo cuando llega la secuencia que faltaba (Core reanuda los eventos retenidos). Si el productor la perdió de verdad, no hay todavía flujo de snapshot y nueva línea base (§6.4): la salida es abrir un <code>stream_epoch</code> nuevo.</li>
+  <li>Las respuestas 4xx con clave de idempotencia quedan registradas: si falló por una precondición (p. ej. la meta aún no existía), el reintento necesita otra clave.</li>
+  <li>Las metas y objetivos admiten cualquier transición de estado (también reabrir uno <code>completed</code>); la especificación no fija su ciclo de vida.</li>
   <li>Las políticas no se borran: se desactivan con <code>enabled: false</code>. Metas, objetivos y recursos tampoco tienen borrado.</li>
   <li>La “incógnita de seguridad” (C20) se detecta por el nombre del campo (<i>security</i>, <i>auth</i>).</li>
   <li>No hay outbox de comandos activo: la tabla <code>command_outbox</code> existe pero ningún flujo la usa todavía; tampoco hay endpoint para consultar las trazas de decisión de políticas (se guardan en <code>decision_traces</code>).</li>

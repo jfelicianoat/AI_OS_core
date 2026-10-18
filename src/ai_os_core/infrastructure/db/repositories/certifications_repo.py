@@ -32,7 +32,8 @@ class CertificationsRepository:
                     is_applicable = excluded.is_applicable,
                     last_verified_at = excluded.last_verified_at,
                     revision = excluded.revision
-                WHERE excluded.revision >= certification_applicability.revision;
+                WHERE excluded.revision >= certification_applicability.revision
+                  AND excluded.source_system = certification_applicability.source_system;
                 """,
                 (
                     cert.model_id,
@@ -49,10 +50,17 @@ class CertificationsRepository:
             # (reintento, reenvío desordenado) no puede deshacer una posterior.
             if cursor.rowcount == 0:
                 cursor.execute(
-                    "SELECT revision FROM certification_applicability WHERE model_id = ? AND capability_id = ? AND version = ?;",
+                    "SELECT revision, source_system FROM certification_applicability WHERE model_id = ? AND capability_id = ? AND version = ?;",
                     (cert.model_id, cert.capability_id, cert.version)
                 )
-                current = cursor.fetchone()["revision"]
+                row = cursor.fetchone()
+                current = row["revision"]
+                if row["source_system"] != cert.source_system:
+                    # Sólo quien evaluó (p. ej. Model Drift) puede rehacer su veredicto
+                    raise ConflictError(
+                        f"La certificación '{cert.model_id}:{cert.capability_id}:{cert.version}' pertenece a "
+                        f"'{row['source_system']}'; '{cert.source_system}' no puede reescribirla."
+                    )
                 raise ConflictError(
                     f"Revisión obsoleta {cert.revision} para '{cert.model_id}:{cert.capability_id}:{cert.version}': "
                     f"la proyección ya está en la revisión {current}."

@@ -16,15 +16,22 @@ from ai_os_core.domain.policies import AuthorizationDecision
 from ai_os_core.domain.errors import NotFoundError
 from ai_os_core.infrastructure.db.repositories.planner_repo import PlannerRepository
 from ai_os_core.infrastructure.db.repositories.goals_repo import GoalsRepository
+from ai_os_core.infrastructure.db.repositories.audit_repo import AuditRepository
 from ai_os_core.application.context_service import SecurityAccessDeniedError
 
 
 class PlannerService:
     """Orquesta la emisión de propuestas tipadas de plan y la resolución de techos de autonomía (P14, P15)."""
 
-    def __init__(self, planner_repo: PlannerRepository, goals_repo: Optional[GoalsRepository] = None):
+    def __init__(
+        self,
+        planner_repo: PlannerRepository,
+        goals_repo: Optional[GoalsRepository] = None,
+        audit_repo: Optional[AuditRepository] = None
+    ):
         self.planner_repo = planner_repo
         self.goals_repo = goals_repo
+        self.audit_repo = audit_repo
 
     def propose_typed_plan(
         self,
@@ -53,6 +60,20 @@ class PlannerService:
         if authorization is not None:
             # Se valida aquí para que la decisión posterior no tenga que adivinar
             AuthorizationDecision(authorization)
+        if authorization == AuthorizationDecision.ALLOW.value:
+            # Un ALLOW lo emite el Core, no quien propone: debe coincidir con una traza real.
+            trace_id = policy_decision.get("trace_id")
+            trace = self.audit_repo.get_decision_trace(trace_id) if (self.audit_repo and trace_id) else None
+            if (
+                trace is None
+                or trace.decision_type != "policy_evaluation"
+                or trace.decision_result != authorization
+                or trace.metadata.get("executable") != policy_decision.get("executable")
+            ):
+                raise ValueError(
+                    "La decisión ALLOW no corresponde a ninguna evaluación de políticas del Core "
+                    "(falta o no coincide su trace_id)."
+                )
 
         pid = proposal_id or f"plan_{uuid.uuid4().hex[:12]}"
         proposal = TypedPlanProposal(
@@ -86,7 +107,9 @@ class PlannerService:
 
         policy = proposal.policy_decision or {}
         authorization = policy.get("authorization")
-        if authorization is not None and authorization != AuthorizationDecision.ALLOW.value:
+        if authorization is None:
+            reasons.append("Sin decisión de política del Core: no se despacha.")
+        elif authorization != AuthorizationDecision.ALLOW.value:
             reasons.append(f"La decisión de política es {authorization}: no se despacha.")
         if policy.get("executable") is False:
             reasons.append("La decisión de política no es ejecutable (unknowns de seguridad o restricciones).")

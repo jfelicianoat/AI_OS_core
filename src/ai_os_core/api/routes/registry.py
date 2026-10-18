@@ -27,7 +27,11 @@ def register_service(
     try:
         health = ServiceHealthStatus(req.health_status)
     except ValueError:
-        health = ServiceHealthStatus.HEALTHY
+        # Un estado ilegible no puede convertirse en 'healthy': sería fallar en abierto.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"health_status inválido '{req.health_status}'. Válidos: {[h.value for h in ServiceHealthStatus]}"
+        )
 
     service = ServiceRegistration(
         service_id=req.service_id,

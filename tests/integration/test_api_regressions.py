@@ -164,8 +164,11 @@ class TestApiRegressions(unittest.TestCase):
     def test_expired_reservation_returns_to_available(self):
         acc = _uid("acc")
         self.client.post("/api/v1/budget/accounts", json={"account_id": acc, "balance": 100})
-        self.client.post("/api/v1/budget/reserve", json={"account_id": acc, "amount": 90, "reservation_id": f"{acc}_old",
-                                                          "expires_at": "2000-01-01T00:00:00Z"})
+        # Desde 0.2.1 no se admite una reserva que nace caducada: caduca en ~2 s
+        soon = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 2))
+        self.assertEqual(self.client.post("/api/v1/budget/reserve", json={
+            "account_id": acc, "amount": 90, "reservation_id": f"{acc}_old", "expires_at": soon}).status_code, 201)
+        time.sleep(2.1)
         r = self.client.post("/api/v1/budget/reserve", json={"account_id": acc, "amount": 90})
         self.assertEqual(r.status_code, 201)
         self.assertEqual(self.client.get(f"/api/v1/budget/reservations/{acc}_old").json()["status"], "expired")
@@ -261,11 +264,17 @@ class TestApiRegressions(unittest.TestCase):
         denied = self._plan({"authorization": "DENY", "executable": False})
         d = self.client.post(f"/api/v1/planner/proposals/{denied}/decision", json={"applicable_ceilings": ["A5"]}).json()
         self.assertFalse(d["approved_for_dispatch"])
-        manual = self._plan({"authorization": "ALLOW", "executable": True})
+        # Un ALLOW sólo vale si lo emitió el Core (0.2.1): se pide una evaluación real
+        scope = _uid("plan_scope")
+        self.client.post("/api/v1/policies", json={"policy_id": _uid("p"), "policy_key": "base", "scope": scope,
+                         "decision_if_matched": "ALLOW", "unconditional": True})
+        allow = self.client.post("/api/v1/policies/evaluate", json={"scope": scope, "context": {}}).json()
+        self.assertEqual(allow["authorization"], "ALLOW")
+        manual = self._plan(allow)
         d = self.client.post(f"/api/v1/planner/proposals/{manual}/decision", json={"applicable_ceilings": ["A0"]}).json()
         self.assertFalse(d["approved_for_dispatch"])
         self.assertEqual(d["effective_autonomy"], "A0")
-        allowed = self._plan({"authorization": "ALLOW", "executable": True})
+        allowed = self._plan(allow)
         d = self.client.post(f"/api/v1/planner/proposals/{allowed}/decision", json={"applicable_ceilings": ["A3"]}).json()
         self.assertTrue(d["approved_for_dispatch"])
         self.assertEqual(d["effective_autonomy"], "A3")

@@ -37,6 +37,27 @@ class AuditRepository:
                 )
             )
 
+    def get_decision_trace(self, trace_id: str) -> Optional[DecisionTrace]:
+        """Recupera una traza de decisión por su ID."""
+        conn = self.db_manager.get_connection()
+        try:
+            row = conn.execute("SELECT * FROM decision_traces WHERE trace_id = ?;", (trace_id,)).fetchone()
+            if not row:
+                return None
+            return DecisionTrace(
+                trace_id=row["trace_id"],
+                decision_type=row["decision_type"],
+                principal_id=row["principal_id"],
+                resource_id=row["resource_id"],
+                inputs_digest=row["inputs_digest"],
+                decision_result=row["decision_result"],
+                matched_rules=json.loads(row["matched_rules_json"]),
+                metadata=json.loads(row["metadata_json"]),
+                created_at=row["created_at"]
+            )
+        finally:
+            conn.close()
+
     def record_audit(self, audit: AuditRecord) -> None:
         """Almacena un registro de auditoría append-only correlacionando operación y recursos."""
         with self.db_manager.transaction() as conn:

@@ -5,7 +5,7 @@ Comentarios en español.
 import uuid
 from typing import Optional
 from ai_os_core.domain.budget import BudgetReservation, BudgetAccount
-from ai_os_core.domain.contracts import normalize_iso_utc
+from ai_os_core.domain.contracts import normalize_iso_utc, is_expired
 from ai_os_core.infrastructure.db.repositories.budget_repo import (
     BudgetRepository,
     InsufficientBudgetError
@@ -40,6 +40,8 @@ class BudgetService:
         """Reserva saldo atómicamente garantizando prevención de sobregiros concurrentes (C09)."""
         rid = reservation_id or f"resv_{uuid.uuid4().hex[:12]}"
         normalized_expiry = normalize_iso_utc(expires_at) if expires_at else None
+        if is_expired(normalized_expiry):
+            raise ValueError(f"La reserva caducaría al nacer (expires_at={normalized_expiry}).")
         return self.budget_repo.create_reservation(rid, account_id, amount, normalized_expiry)
 
     def consume_budget(self, reservation_id: str) -> None:

@@ -53,17 +53,15 @@ class BudgetRepository:
             return BudgetAccount(account_id=account_id, balance=balance, reserved=0.0)
 
     def get_account(self, account_id: str) -> Optional[BudgetAccount]:
-        """Consulta una cuenta sin efectos secundarios."""
-        conn = self.db_manager.get_connection()
-        try:
+        """Consulta una cuenta (sin crearla); antes devuelve al disponible lo ya caducado."""
+        with self.db_manager.transaction() as conn:
             cursor = conn.cursor()
+            self._expire_stale_reservations(cursor, account_id)
             cursor.execute("SELECT balance, reserved FROM budget_accounts WHERE account_id = ?;", (account_id,))
             row = cursor.fetchone()
             if not row:
                 return None
             return BudgetAccount(account_id=account_id, balance=row["balance"], reserved=row["reserved"])
-        finally:
-            conn.close()
 
     @staticmethod
     def _expire_stale_reservations(cursor: sqlite3.Cursor, account_id: str) -> None:
@@ -203,14 +201,16 @@ class BudgetRepository:
                 )
 
     def get_reservation(self, reservation_id: str) -> Optional[BudgetReservation]:
-        """Obtiene una reserva por su ID."""
-        conn = self.db_manager.get_connection()
-        try:
+        """Obtiene una reserva por su ID, con la caducidad ya aplicada."""
+        with self.db_manager.transaction() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM budget_reservations WHERE reservation_id = ?;", (reservation_id,))
+            cursor.execute("SELECT account_id FROM budget_reservations WHERE reservation_id = ?;", (reservation_id,))
             row = cursor.fetchone()
             if not row:
                 return None
+            self._expire_stale_reservations(cursor, row["account_id"])
+            cursor.execute("SELECT * FROM budget_reservations WHERE reservation_id = ?;", (reservation_id,))
+            row = cursor.fetchone()
             return BudgetReservation(
                 reservation_id=row["reservation_id"],
                 account_id=row["account_id"],
@@ -219,5 +219,3 @@ class BudgetRepository:
                 expires_at=row["expires_at"],
                 created_at=row["created_at"]
             )
-        finally:
-            conn.close()

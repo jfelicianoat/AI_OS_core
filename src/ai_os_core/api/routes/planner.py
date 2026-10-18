@@ -2,7 +2,7 @@
 Comentarios en español.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from ai_os_core.domain.planner import (
@@ -13,7 +13,7 @@ from ai_os_core.domain.planner import (
 from ai_os_core.domain.security import AuthorizationPrincipal, ClassificationLevel
 from ai_os_core.application.planner_service import PlannerService
 from ai_os_core.application.context_service import SecurityAccessDeniedError
-from ai_os_core.api.dependencies import get_planner_service
+from ai_os_core.api.dependencies import get_planner_service, enforce_token_grant
 
 router = APIRouter(prefix="/api/v1/planner", tags=["Typed Planner"])
 
@@ -43,6 +43,7 @@ class DecideExecutionRequest(BaseModel):
 
 @router.post("/proposals", status_code=status.HTTP_201_CREATED)
 def propose_typed_plan(
+    request: Request,
     req: CreatePlanProposalRequest,
     service: PlannerService = Depends(get_planner_service)
 ):
@@ -51,6 +52,9 @@ def propose_typed_plan(
         autonomy = AutonomyLevel(req.requested_autonomy)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Autonomía inválida '{req.requested_autonomy}'.")
+
+    # Lo que declara la petición no puede superar lo que concede su token
+    enforce_token_grant(request, req.principal_scopes)
 
     principal = AuthorizationPrincipal(
         principal_id=req.principal_id,

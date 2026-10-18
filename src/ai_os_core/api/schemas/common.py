@@ -45,8 +45,8 @@ class CreateObjectiveRequest(BaseModel):
 
 # DTOs para Registro de Servicios y Capacidades
 class ServiceRegistrationRequest(BaseModel):
-    service_id: str
-    name: str
+    service_id: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
     base_url: str
     version: str = "1.0.0"
     health_status: str = "healthy"
@@ -55,7 +55,7 @@ class ServiceRegistrationRequest(BaseModel):
 
 
 class CapabilityRegistrationRequest(BaseModel):
-    capability_id: str
+    capability_id: str = Field(..., min_length=1)
     name: str
     description: str
     provider_service_id: str
@@ -71,8 +71,8 @@ class EventIngestRequest(BaseModel):
     event_id: str
     producer_id: str
     stream_id: str
-    stream_epoch: int
-    source_sequence: int
+    stream_epoch: int = Field(..., ge=0)
+    source_sequence: int = Field(..., ge=1)
     event_type: str  # full_state, delta, audit, notification
     resource_id: str
     resource_type: str

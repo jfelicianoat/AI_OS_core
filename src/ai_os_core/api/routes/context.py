@@ -2,13 +2,13 @@
 Comentarios en español.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from ai_os_core.domain.contracts import ResourceReference
 from ai_os_core.domain.security import ClassificationLevel, AuthorizationPrincipal
 from ai_os_core.application.context_service import ContextService, SecurityAccessDeniedError
-from ai_os_core.api.dependencies import get_context_service
+from ai_os_core.api.dependencies import get_context_service, enforce_token_grant
 
 router = APIRouter(prefix="/api/v1/context", tags=["Context Engine"])
 
@@ -34,6 +34,7 @@ class CreateContextPackageRequest(BaseModel):
 
 @router.post("/packages", status_code=status.HTTP_201_CREATED)
 def build_context_package(
+    request: Request,
     req: CreateContextPackageRequest,
     service: ContextService = Depends(get_context_service)
 ):
@@ -54,6 +55,9 @@ def build_context_package(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Clearance inválido '{req.principal_clearance}'. Válidos: {[c.value for c in ClassificationLevel]}"
         )
+
+    # Lo que declara la petición no puede superar lo que concede su token
+    enforce_token_grant(request, req.principal_scopes, req.principal_clearance)
 
     principal = AuthorizationPrincipal(
         principal_id=req.principal_id,

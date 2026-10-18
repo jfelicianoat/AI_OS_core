@@ -32,6 +32,8 @@ def register_exception_handlers(app: Any) -> None:
     from ..infrastructure.http.security_client import SSRFSecurityViolation
     from ..domain.errors import ConflictError, NotFoundError
     from starlette.exceptions import HTTPException as StarletteHTTPException
+    from fastapi.exceptions import RequestValidationError
+    from fastapi.encoders import jsonable_encoder
     import sqlite3
 
     @app.exception_handler(StarletteHTTPException)
@@ -41,6 +43,15 @@ def register_exception_handlers(app: Any) -> None:
         content = format_error_response("HTTPError", str(exc.detail))
         content["detail"] = exc.detail
         return JSONResponse(status_code=exc.status_code, content=content, headers=getattr(exc, "headers", None))
+
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_handler(request: Request, exc: RequestValidationError):
+        # Mismo sobre que el resto; "detail" conserva la lista de errores de FastAPI.
+        errors = jsonable_encoder(exc.errors())
+        message = "; ".join(f"{'.'.join(str(p) for p in e.get('loc', []))}: {e.get('msg')}" for e in errors)
+        content = format_error_response("RequestValidationError", message, {"errors": errors})
+        content["detail"] = errors
+        return JSONResponse(status_code=422, content=content)
 
     @app.exception_handler(IdempotencyConflictError)
     async def idempotency_conflict_handler(request: Request, exc: IdempotencyConflictError):
@@ -95,6 +106,14 @@ def register_exception_handlers(app: Any) -> None:
 
     @app.exception_handler(ValueError)
     async def value_error_handler(request: Request, exc: ValueError):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=format_error_response("ValidationError", str(exc))
+        )
+
+    @app.exception_handler(OverflowError)
+    async def overflow_handler(request: Request, exc: OverflowError):
+        # Un entero >= 2**63 no cabe en un INTEGER de SQLite: es entrada del cliente, no un 500.
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=format_error_response("ValidationError", str(exc))

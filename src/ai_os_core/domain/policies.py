@@ -171,6 +171,7 @@ class PolicyDecision:
     matched_policy_refs: list[str] = field(default_factory=list)
     unknown_inputs: list[str] = field(default_factory=list)
     executable: bool = True
+    trace_id: Optional[str] = None  # DecisionTrace del Core que respalda esta decisión
 
     def to_dict(self) -> dict[str, Any]:
         """Serializa a diccionario."""

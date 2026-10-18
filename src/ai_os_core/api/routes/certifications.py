@@ -56,7 +56,7 @@ def list_certifications(service: CertificationService = Depends(get_certificatio
     return [c.to_dict() for c in certs]
 
 
-@router.get("/{model_id}/{capability_id}/{version}")
+@router.get("/{model_id:path}/{capability_id}/{version}")
 def get_certification(
     model_id: str,
     capability_id: str,

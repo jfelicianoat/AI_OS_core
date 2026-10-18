@@ -117,7 +117,9 @@ class PolicyService:
         has_security_unknown = any("security" in u.lower() or "auth" in u.lower() for u in unknown_inputs)
         executable = (consolidated_auth == AuthorizationDecision.ALLOW) and not has_security_unknown
 
+        trace_id = f"trace_{uuid.uuid4().hex[:12]}"
         decision = PolicyDecision(
+            trace_id=trace_id,
             authorization=consolidated_auth,
             constraints=collected_constraints,
             obligations=sorted(list(collected_obligations)),
@@ -131,7 +133,7 @@ class PolicyService:
         inputs_digest = hashlib.sha256(context_str.encode()).hexdigest()
         self.audit_repo.record_decision_trace(
             DecisionTrace(
-                trace_id=f"trace_{uuid.uuid4().hex[:12]}",
+                trace_id=trace_id,
                 decision_type="policy_evaluation",
                 principal_id=principal_id,
                 resource_id=resource_id,

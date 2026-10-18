@@ -2,7 +2,11 @@
 Comentarios en español.
 """
 
+from dataclasses import dataclass
 from functools import lru_cache
+from typing import FrozenSet, List, Optional
+from fastapi import HTTPException, Request
+from ..domain.security import ClassificationLevel, CLASSIFICATION_ORDER
 from ..infrastructure.db.connection import db_manager, DatabaseManager
 from ..infrastructure.db.repositories.goals_repo import GoalsRepository
 from ..infrastructure.db.repositories.services_repo import ServicesRepository
@@ -155,5 +159,30 @@ def get_planner_repo() -> PlannerRepository:
 
 @lru_cache()
 def get_planner_service() -> PlannerService:
-    return PlannerService(get_planner_repo(), get_goals_repo())
+    return PlannerService(get_planner_repo(), get_goals_repo(), get_audit_repo())
 
+
+
+@dataclass(frozen=True)
+class TokenGrant:
+    """Lo que concede un token de AI_OS_API_TOKEN(S): quién es y, opcionalmente, qué puede pedir."""
+    principal: Optional[str]
+    scopes: Optional[FrozenSet[str]] = None   # None: sin límite de scopes
+    clearance: Optional[str] = None           # None: sin límite de clasificación
+
+
+def enforce_token_grant(request: Request, scopes: List[str], clearance: Optional[str] = None) -> None:
+    """403 si la petición pide scopes o un clearance por encima de lo que concede su token."""
+    grant = getattr(request.state, "token_grant", None)
+    if grant is None:
+        return
+    if grant.scopes is not None:
+        extra = sorted(set(scopes) - grant.scopes)
+        if extra:
+            raise HTTPException(status_code=403, detail=f"El token de '{grant.principal}' no concede los scopes {extra}.")
+    if grant.clearance is not None and clearance is not None:
+        if CLASSIFICATION_ORDER[ClassificationLevel(clearance)] > CLASSIFICATION_ORDER[ClassificationLevel(grant.clearance)]:
+            raise HTTPException(
+                status_code=403,
+                detail=f"El token de '{grant.principal}' sólo concede hasta {grant.clearance}, no {clearance}."
+            )

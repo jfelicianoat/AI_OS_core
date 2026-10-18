@@ -4,16 +4,50 @@ Comentarios en español.
 
 from contextlib import asynccontextmanager
 import hashlib
+import hmac
 import json
+import os
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, Response as FastApiResponse
 
 from .bootstrap import bootstrap_database
 from .api.errors import register_exception_handlers, format_error_response
-from .api.dependencies import get_idempotency_repo
+from .api.dependencies import get_idempotency_repo, TokenGrant
+from .domain.security import ClassificationLevel
 from .infrastructure.db.repositories.idempotency_repo import IdempotencyConflictError, IdempotencyInProgressError
 from .api.routes import health, goals, registry, events, policies, approvals, restore, budget, certifications, context, planner, resources
 from . import __version__
+
+
+# Rutas sin token: sondas de vida y documentación (no exponen datos).
+_PUBLIC_PATHS = {"/health", "/ready", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}
+
+
+def _load_tokens() -> dict:
+    """Tokens admitidos -> TokenGrant (principal None para el token común sin identidad).
+
+    AI_OS_API_TOKEN: un token compartido. AI_OS_API_TOKENS: "app=token;otra_app=token2",
+    un token por app, que fija quién llama. Opcionalmente "app=token|scope1,scope2|CLEARANCE"
+    limita qué scopes y qué nivel de clasificación puede pedir esa app.
+    """
+    tokens = {}
+    shared = os.getenv("AI_OS_API_TOKEN", "").strip()
+    if shared:
+        tokens[shared] = TokenGrant(principal=None)
+    for item in os.getenv("AI_OS_API_TOKENS", "").split(";"):
+        principal, sep, rest = item.partition("=")
+        token, _, limits = rest.partition("|")
+        scopes, _, clearance = limits.partition("|")
+        if sep and principal.strip() and token.strip():
+            clearance = clearance.strip() or None
+            if clearance is not None:
+                ClassificationLevel(clearance)  # un nivel mal escrito impide arrancar: no se abre de más
+            tokens[token.strip()] = TokenGrant(
+                principal=principal.strip(),
+                scopes=frozenset(s.strip() for s in scopes.split(",") if s.strip()) if scopes.strip() else None,
+                clearance=clearance
+            )
+    return tokens
 
 
 @asynccontextmanager
@@ -111,6 +145,52 @@ def create_app() -> FastAPI:
 
         idemp_repo.release(namespaced_key)
         return response
+
+    # Autenticación opcional por token (registrada después: Starlette la ejecuta antes que la
+    # idempotencia, así una petición sin credencial no reserva claves). Sin AI_OS_API_TOKEN ni
+    # AI_OS_API_TOKENS la API queda abierta como en 0.2.0, pensada sólo para 127.0.0.1.
+    tokens = _load_tokens()
+    if tokens:
+        @app.middleware("http")
+        async def token_middleware(request: Request, call_next):
+            if request.url.path in _PUBLIC_PATHS:
+                return await call_next(request)
+            scheme, _, supplied = request.headers.get("Authorization", "").partition(" ")
+            supplied = supplied.strip()
+            matched, grant = False, None
+            for token, owner in tokens.items():  # sin salida temprana: todas las comparaciones cuestan igual
+                if hmac.compare_digest(supplied, token):
+                    matched, grant = True, owner
+            principal = grant.principal if grant else None
+            request.state.token_grant = grant  # lo leen las rutas que reciben scopes o clearance
+            if scheme.lower() != "bearer" or not matched:
+                return JSONResponse(
+                    status_code=401,
+                    content=format_error_response("Unauthorized", "Falta el token de AI OS Core o no es válido."),
+                    headers={"WWW-Authenticate": "Bearer"}
+                )
+            if principal:
+                # Token con identidad: la app no puede declararse otra en la cabecera ni en el cuerpo
+                declared = request.headers.get("X-Principal-Id")
+                body_principal = None
+                if request.method in ("POST", "PUT", "PATCH"):
+                    try:
+                        body = json.loads(await request.body() or b"null")
+                        body_principal = body.get("principal_id") if isinstance(body, dict) else None
+                    except ValueError:
+                        pass  # el cuerpo ilegible lo rechaza la validación de la ruta
+                for claimed in (declared, body_principal):
+                    if claimed is not None and claimed != principal:
+                        return JSONResponse(
+                            status_code=403,
+                            content=format_error_response(
+                                "PrincipalMismatch", f"El token pertenece a '{principal}', no a '{claimed}'."
+                            )
+                        )
+                if declared is None:
+                    # La idempotencia separa claves por principal: que use el del token
+                    request.scope["headers"].append((b"x-principal-id", principal.encode()))
+            return await call_next(request)
 
     # Registro de routers
     app.include_router(health.router)
