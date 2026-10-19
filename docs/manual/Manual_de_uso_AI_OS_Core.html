@@ -56,7 +56,7 @@
   <div class="meta">
     Versión del software: <b>0.2.1</b> · Fecha: 18 de octubre de 2026<br>
     Verificado contra: AI Broker (contrato 2.11) en el PC IA, tablero de Agora, servicio de Athena, datos de Model_Drift y de Gestión Tareas IA<br>
-    Suite automática: 66 pruebas en verde · Recorridos E2E reales: 31 (Broker + Agora), 33 (Model_Drift + Athena + Gestión Tareas IA) y 18 (ChatyGPT + Knowledge Orchestrator + Trading AI + Local AI Lab)
+    Suite automática: 67 pruebas en verde · Recorridos E2E reales: 31 (Broker + Agora), 33 (Model_Drift + Athena + Gestión Tareas IA) y 18 (ChatyGPT + Knowledge Orchestrator + Trading AI + Local AI Lab)
   </div>
 </section>
 
@@ -164,6 +164,7 @@ python -m uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8000</pre>
 <h3>Autenticación</h3>
 <p>Si arrancas Core con la variable <code>AI_OS_API_TOKEN</code>, toda la API exige la cabecera <code>Authorization: Bearer &lt;token&gt;</code>; sin ella o con otro valor responde <b>401</b>. <code>/health</code>, <code>/ready</code> y la documentación (<code>/docs</code>, <code>/redoc</code>, <code>/openapi.json</code>) siguen públicas para que un lanzador sepa si hay algo escuchando. Sin la variable, la API queda abierta como en 0.2.0. Una petición rechazada por token no llega a reservar su clave de idempotencia.</p>
 <p><b>Un token por app</b>: con <code>AI_OS_API_TOKENS="chatygpt=token1;athena=token2"</code> cada token identifica a su app. Si esa app declara ser otra, en la cabecera <code>X-Principal-Id</code> o en el campo <code>principal_id</code> del cuerpo, Core responde <b>403</b> <code>PrincipalMismatch</code>; si no declara nada, Core usa el nombre del token, también para separar las claves de idempotencia. Puede convivir con <code>AI_OS_API_TOKEN</code>.</p>
+<p><b>Permisos por token</b>: <code>gestion_tareas=token|planner:propose|INTERNAL</code> limita además qué scopes puede declarar esa app (en el planificador y en los paquetes de contexto, también los que se ponen por defecto) y hasta qué nivel de clasificación. Pedir más → <b>403</b>. Si el nivel está mal escrito, Core no arranca.</p>
 <pre>set AI_OS_API_TOKEN=pon-aqui-un-secreto-largo
 run.bat app
 curl http://127.0.0.1:8000/api/v1/goals -H "Authorization: Bearer pon-aqui-un-secreto-largo"</pre>
@@ -464,7 +465,10 @@ curl http://127.0.0.1:8000/ready
   <li><b>Local AI Lab</b>: 10 registros de experimentos proyectados idénticos.</li>
   <li><b>LARM</b> no entra: hoy sólo es especificación y prompts, no hay programa que gobernar.</li>
 </ul>
-<div class="note"><b>Lo que esto no prueba</b>Ninguna app llama hoy a Core por su cuenta: en los dos recorridos el guion hace de cliente. Conectar una app es trabajo en esa app. La API de Athena no expone el texto final de su respuesta, sólo la evidencia (ficheros leídos, modelo, verificación).</div>
+<h3>Una app dirigida de verdad: Gestión Tareas IA 1.49.0</h3>
+<p>En «Conexiones › AI OS Core» se pone la URL de Core y el token por app de <code>gestion_tareas</code>. Desde entonces, antes de «Importar desde fichero» o «Dividir con IA» la app evalúa la política <code>gestion_tareas:broker</code> (contexto <code>operation_type</code> y <code>data_classification: confidential</code>) y solo envía con un ALLOW ejecutable; si Core no contesta, no envía nada. Después manda a Core el recibo de cada estado, con la clave de idempotencia como <code>operation_id</code>. Con la URL vacía la app funciona como antes.</p>
+<p>Verificado el 18 de octubre con <code>Gestion Tareas IA\scripts\verify_ai_os_core.py</code> (11 comprobaciones): el código real de «Dividir con IA», este Core con tokens por app y el Broker real. DENY → no llega nada al Broker; ALLOW → la tarea real se divide en 3 subtareas y Core queda con el recibo <code>succeeded</code> enlazado al <code>task_id</code> y la recomendación «no reenviar»; Core caído → no llega nada; el token de la app no sirve para suplantar al director.</p>
+<div class="note"><b>Lo que esto no prueba</b>En los recorridos E2E el guion hace de cliente; la única app que consulta a Core por su cuenta es Gestión Tareas IA, y solo para lo que manda al Broker (no para lo que deja en Agora). La API de Athena no expone el texto final de su respuesta, sólo la evidencia (ficheros leídos, modelo, verificación).</div>
 
 <h2>19. Configuración</h2>
 <table>
@@ -481,7 +485,7 @@ curl http://127.0.0.1:8000/ready
 
 <h2 class="newpage">20. Pruebas y verificación</h2>
 <pre>run.bat tests                         :: o bien
-python -m pytest -q                   :: 66 pruebas
+python -m pytest -q                   :: 67 pruebas
 python -m pytest tests/integration/test_api_regressions.py -v</pre>
 <table>
   <tr><th>Fichero</th><th>Cubre</th></tr>
@@ -491,7 +495,7 @@ python -m pytest tests/integration/test_api_regressions.py -v</pre>
   <tr><td><code>tests/integration/test_p02_p15_advanced.py</code></td><td>C09, C12, C21, C22, certificaciones, planner</td></tr>
   <tr><td><code>tests/integration/test_api_smoke.py</code></td><td>Arranque, <code>/ready</code> y CRUD básico por HTTP</td></tr>
   <tr><td><code>tests/integration/test_api_regressions.py</code></td><td>Carreras reales de C01, C07 y C09 (peticiones simultáneas), duplicados, fail-open, SSRF y las rutas nuevas de 0.2.0</td></tr>
-  <tr><td><code>tests/integration/test_api_regressions_0_2_1.py</code></td><td>Revisión 0.2.1: enteros fuera de rango, recibos que retroceden, caducidad en lecturas, reanudación tras REPLAY_GAP, epoch anterior, <code>event_id</code> divergente, propietario de certificaciones y ALLOW falsificado en el planificador, token opcional, tokens por app y certificaciones con barras en el modelo</td></tr>
+  <tr><td><code>tests/integration/test_api_regressions_0_2_1.py</code></td><td>Revisión 0.2.1: enteros fuera de rango, recibos que retroceden, caducidad en lecturas, reanudación tras REPLAY_GAP, epoch anterior, <code>event_id</code> divergente, propietario de certificaciones y ALLOW falsificado en el planificador, token opcional, tokens por app con permisos y certificaciones con barras en el modelo</td></tr>
 </table>
 <p>Los tests usan siempre una base temporal (<code>tests/__init__.py</code>); no tocan la base real. Las pruebas de carrera se validaron quitando el arreglo: sin él, fallan. Las de 0.2.1 se validaron igual, una a una contra el código anterior.</p>
 
@@ -511,7 +515,7 @@ python -m pytest tests/integration/test_api_regressions.py -v</pre>
 </table>
 
 <h2>22. Límites conocidos</h2>
-<div class="note bad"><b>Alcance de la autenticación</b>Con tokens por app (<code>AI_OS_API_TOKENS</code>) Core sabe quién llama y no deja que una app se haga pasar por otra. Lo que <i>no</i> controla aún es qué puede hacer cada una: los scopes y el clearance de planificador y contexto siguen viniendo en la petición. Con el token común (<code>AI_OS_API_TOKEN</code>) todas las apps son indistinguibles, y sin ninguna variable no hay comprobación. Escucha en <code>127.0.0.1</code>; no lo expongas en la red sin HTTPS delante.</div>
+<div class="note bad"><b>Alcance de la autenticación</b>Con tokens por app (<code>AI_OS_API_TOKENS</code>) Core sabe quién llama y no deja que una app se haga pasar por otra. Con permisos en el token (<code>app=token|scopes|NIVEL</code>) tampoco puede pedir más scopes ni más clasificación de los que tiene. Sin permisos en el token, los scopes y el clearance siguen viniendo en la petición. Con el token común (<code>AI_OS_API_TOKEN</code>) todas las apps son indistinguibles, y sin ninguna variable no hay comprobación. Escucha en <code>127.0.0.1</code>; no lo expongas en la red sin HTTPS delante.</div>
 <ul>
   <li>Un REPLAY_GAP se resuelve sólo cuando llega la secuencia que faltaba (Core reanuda los eventos retenidos). Si el productor la perdió de verdad, no hay todavía flujo de snapshot y nueva línea base (§6.4): la salida es abrir un <code>stream_epoch</code> nuevo.</li>
   <li>Las respuestas 4xx con clave de idempotencia quedan registradas: si falló por una precondición (p. ej. la meta aún no existía), el reintento necesita otra clave.</li>

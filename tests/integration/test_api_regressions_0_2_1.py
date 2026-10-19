@@ -72,6 +72,16 @@ class TestApiRegressions021(unittest.TestCase):
                            headers={**h, "Authorization": "Bearer tok-athena-456"})
                 self.assertEqual((a.status_code, b.status_code), (201, 201), b.text)
                 self.assertNotEqual(a.json()["id"], b.json()["id"])
+                # Tampoco puede certificar ni producir eventos en nombre de otra
+                cert = {"model_id": _uid("m"), "capability_id": "c", "version": "1",
+                        "evaluation_verdict": "CERTIFIED", "is_applicable": True}
+                self.assertEqual(c.post("/api/v1/certifications", json={**cert, "source_system": "model_drift"},
+                                        headers=chaty).status_code, 403)
+                self.assertEqual(c.post("/api/v1/certifications", json={**cert, "source_system": "chatygpt"},
+                                        headers=chaty).status_code, 201)
+                ev = {"event_id": _uid("ev"), "producer_id": "athena", "stream_id": "s", "epoch": 1,
+                      "source_sequence": 1, "resource_id": "r", "event_type": "t", "payload": {}}
+                self.assertEqual(c.post("/api/v1/events/inbox", json=ev, headers=chaty).status_code, 403)
         finally:
             del os.environ["AI_OS_API_TOKENS"]
 

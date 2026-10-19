@@ -15,12 +15,14 @@ from .api.errors import register_exception_handlers, format_error_response
 from .api.dependencies import get_idempotency_repo, TokenGrant
 from .domain.security import ClassificationLevel
 from .infrastructure.db.repositories.idempotency_repo import IdempotencyConflictError, IdempotencyInProgressError
-from .api.routes import health, goals, registry, events, policies, approvals, restore, budget, certifications, context, planner, resources
+from .api.routes import health, goals, registry, events, policies, approvals, restore, budget, certifications, context, planner, resources, flows, launcher
 from . import __version__
 
 
 # Rutas sin token: sondas de vida y documentación (no exponen datos).
-_PUBLIC_PATHS = {"/health", "/ready", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}
+_PUBLIC_PATHS = {"/health", "/ready", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/monitor"}
+# La página del monitor y sus iconos no llevan datos: los datos se piden con token desde ella.
+_PUBLIC_PREFIXES = ("/monitor/",)
 
 
 def _load_tokens() -> dict:
@@ -153,7 +155,7 @@ def create_app() -> FastAPI:
     if tokens:
         @app.middleware("http")
         async def token_middleware(request: Request, call_next):
-            if request.url.path in _PUBLIC_PATHS:
+            if request.url.path in _PUBLIC_PATHS or request.url.path.startswith(_PUBLIC_PREFIXES):
                 return await call_next(request)
             scheme, _, supplied = request.headers.get("Authorization", "").partition(" ")
             supplied = supplied.strip()
@@ -172,14 +174,16 @@ def create_app() -> FastAPI:
             if principal:
                 # Token con identidad: la app no puede declararse otra en la cabecera ni en el cuerpo
                 declared = request.headers.get("X-Principal-Id")
-                body_principal = None
+                claims = [declared]
                 if request.method in ("POST", "PUT", "PATCH"):
                     try:
                         body = json.loads(await request.body() or b"null")
-                        body_principal = body.get("principal_id") if isinstance(body, dict) else None
+                        if isinstance(body, dict):
+                            # Quien certifica (source_system) o produce eventos (producer_id) es la app del token
+                            claims += [body.get(k) for k in ("principal_id", "source_system", "producer_id")]
                     except ValueError:
                         pass  # el cuerpo ilegible lo rechaza la validación de la ruta
-                for claimed in (declared, body_principal):
+                for claimed in claims:
                     if claimed is not None and claimed != principal:
                         return JSONResponse(
                             status_code=403,
@@ -205,6 +209,9 @@ def create_app() -> FastAPI:
     app.include_router(context.router)
     app.include_router(planner.router)
     app.include_router(resources.router)
+    app.include_router(flows.router)
+    app.include_router(flows.page_router)
+    app.include_router(launcher.router)
 
     return app
 

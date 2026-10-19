@@ -3,12 +3,14 @@ Comentarios en español.
 """
 
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from ai_os_core.api.schemas.common import OperationStatusQueryRequest, OperationReceiptDTO
 from ai_os_core.domain.restore import OperationStatusQuery, OperationReceipt, OperationExecutionStatus
 from ai_os_core.application.restore_service import RestoreService
-from ai_os_core.api.dependencies import get_restore_service
+from ai_os_core.api.dependencies import get_restore_service, get_flows_repo
+from ai_os_core.api.routes.flows import flow_id_from, record_safely, reporter
+from ai_os_core.infrastructure.db.repositories.flows_repo import FlowsRepository
 
 router = APIRouter(prefix="/api/v1/operations", tags=["Restore"])
 
@@ -38,7 +40,9 @@ class RecordReceiptRequest(BaseModel):
 @router.post("/receipts", response_model=OperationReceiptDTO, status_code=status.HTTP_201_CREATED)
 def record_operation_receipt(
     req: RecordReceiptRequest,
-    service: RestoreService = Depends(get_restore_service)
+    request: Request,
+    service: RestoreService = Depends(get_restore_service),
+    flows: FlowsRepository = Depends(get_flows_repo)
 ):
     """Registra (o actualiza) el comprobante que un receptor emite sobre una operación (§7)."""
     try:
@@ -55,4 +59,10 @@ def record_operation_receipt(
         result_digest=req.result_digest,
         evidence=req.evidence
     )
-    return service.record_receipt(receipt).to_dict()
+    saved = service.record_receipt(receipt).to_dict()
+    # Monitor: el recibo cierra el paso en el flujo de la petición (evidence.flow_id) o en el suyo propio
+    record_safely(flows, flow_id=flow_id_from(req.evidence, req.operation_id), kind="receipt",
+                  source=reporter(request, "desconocida"), target="core", summary=req.status,
+                  details={"operation_id": req.operation_id, "status": req.status,
+                           "receiver_service": req.receiver_service})
+    return saved

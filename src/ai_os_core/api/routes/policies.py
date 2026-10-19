@@ -2,8 +2,9 @@
 Comentarios en español.
 """
 
+import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from ai_os_core.api.schemas.common import CreatePolicyRequest, PolicyEvaluateRequest
 from ai_os_core.domain.policies import (
     Policy,
@@ -13,7 +14,9 @@ from ai_os_core.domain.policies import (
 )
 from ai_os_core.application.policy_service import PolicyService
 from ai_os_core.infrastructure.db.repositories.policies_repo import PoliciesRepository
-from ai_os_core.api.dependencies import get_policy_service, get_policies_repo
+from ai_os_core.api.dependencies import get_policy_service, get_policies_repo, get_flows_repo
+from ai_os_core.api.routes.flows import flow_id_from, record_safely, reporter
+from ai_os_core.infrastructure.db.repositories.flows_repo import FlowsRepository
 
 router = APIRouter(prefix="/api/v1/policies", tags=["Policies"])
 
@@ -73,7 +76,9 @@ def create_policy(
 @router.post("/evaluate")
 def evaluate_policies(
     req: PolicyEvaluateRequest,
-    service: PolicyService = Depends(get_policy_service)
+    request: Request,
+    service: PolicyService = Depends(get_policy_service),
+    flows: FlowsRepository = Depends(get_flows_repo)
 ):
     """Evalúa las políticas para un scope y contexto dados."""
     decision = service.evaluate_policies(
@@ -82,7 +87,19 @@ def evaluate_policies(
         principal_id=req.principal_id,
         resource_id=req.resource_id
     )
-    return decision.to_dict()
+    result = decision.to_dict()
+    # Monitor: la decisión entra en el flujo de la petición (context.flow_id) o abre uno propio
+    asker = req.principal_id if req.principal_id != "system" else req.scope.split(":", 1)[0]
+    record_safely(flows, flow_id=flow_id_from(req.context, result["trace_id"] or f"flow_{uuid.uuid4().hex[:12]}"), kind="decision",
+                  source=reporter(request, asker), target="core",
+                  summary=f"{result['authorization']} · {req.scope}",
+                  details={"scope": req.scope, "authorization": result["authorization"],
+                           "executable": result["executable"], "trace_id": result["trace_id"],
+                           "data_classification": req.context.get("data_classification"),
+                           "matched_policies": result["matched_policy_refs"],
+                           "unknown_inputs": result["unknown_inputs"],
+                           "destination": req.scope.split(":", 1)[1] if ":" in req.scope else None})
+    return result
 
 
 @router.get("")

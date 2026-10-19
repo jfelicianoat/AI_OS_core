@@ -4,6 +4,15 @@ title AI OS Core - Launcher
 
 cd /d "%~dp0"
 set "PYTHONPATH=%~dp0src"
+rem Donde escucha Core. Por defecto solo este equipo; para que llegue el runner del PC IA:
+rem   setx AI_OS_HOST 0.0.0.0  (y entonces, tokens: AI_OS_API_TOKEN y AI_OS_API_TOKENS)
+if not defined AI_OS_HOST set "AI_OS_HOST=127.0.0.1"
+if not "%AI_OS_HOST%"=="127.0.0.1" if not defined AI_OS_API_TOKEN (
+    echo AI_OS_HOST=%AI_OS_HOST% abre Core a la red: define antes AI_OS_API_TOKEN ^(y AI_OS_API_TOKENS^).
+    echo Sin token cualquiera en la red podria cambiar politicas. No se arranca.
+    pause
+    exit /b 1
+)
 
 if exist "%~dp0.venv\Scripts\activate.bat" (
     call "%~dp0.venv\Scripts\activate.bat"
@@ -63,10 +72,13 @@ cls
 echo =====================================================================
 echo  Iniciando AI OS Core Service en http://127.0.0.1:8000
 echo =====================================================================
+echo  Monitor visual:           http://127.0.0.1:8000/monitor
 echo  Swagger UI disponible en: http://127.0.0.1:8000/docs
 echo  Presiona Ctrl+C para detener el servicio.
 echo =====================================================================
-python -m uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8000 --reload
+rem El monitor reintenta solo hasta que Core responde: se puede abrir antes de arrancar
+start "" http://127.0.0.1:8000/monitor
+python -m uvicorn ai_os_core.app:app --host %AI_OS_HOST% --port 8000 --reload
 if not "%~1"=="" goto EXIT_SCRIPT
 pause
 goto MENU
@@ -115,7 +127,7 @@ echo =====================================================================
 echo  Abriendo Swagger UI en el navegador y arrancando servidor...
 echo =====================================================================
 start http://127.0.0.1:8000/docs
-python -m uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn ai_os_core.app:app --host %AI_OS_HOST% --port 8000 --reload
 if not "%~1"=="" goto EXIT_SCRIPT
 pause
 goto MENU

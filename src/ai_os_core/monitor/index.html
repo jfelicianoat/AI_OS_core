@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI OS Core · Monitor</title>
+<link rel="icon" href="/monitor/iconos/core.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Sala de control, sólo en oscuro (va sobre la nebulosa): constelación a la izquierda, relato a la derecha, secuencia en un panel al pulsar */
+:root{
+  --bg:#0b0e13; --panel:rgba(20,25,33,.86); --panel-solid:#141921; --line:#2a3240; --fg:#e6e9ef; --muted:#8f99a8;
+  --core:#f2b33d; --req:#5aa2ff; --allow:#3fcf8e; --deny:#ff5d5d; --resp:#b28cff; --receipt:#c9b37e; --idle:#5d6878;
+  --display:"Familjen Grotesk",system-ui,sans-serif; --body:"Atkinson Hyperlegible",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.15;text-wrap:balance}
+button{font:600 13px var(--body);color:var(--fg);background:var(--panel-solid);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--core)}
+:focus-visible{outline:2px solid var(--core);outline-offset:2px}
+.mono{font-family:var(--mono)}
+
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:12px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--panel-solid);z-index:2}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .ico{width:30px;height:30px;color:var(--core)}
+.brand h1{font-size:20px}
+.brand small{display:block;font:12px var(--mono);color:var(--muted)}
+.live{display:inline-flex;align-items:center;gap:7px;font:600 12px var(--mono);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--idle)}
+.live.on{color:var(--allow)} .live.on i{background:var(--allow);box-shadow:0 0 8px var(--allow);animation:pulse 2s infinite}
+.live.err{color:var(--deny)} .live.err i{background:var(--deny)}
+.stats{display:flex;gap:16px;margin-left:auto;flex-wrap:wrap}
+.stat{display:grid;line-height:1.1}
+.stat b{font:700 20px var(--display);font-variant-numeric:tabular-nums}
+.stat span{font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stat.allow b{color:var(--allow)} .stat.deny b{color:var(--deny)} .stat.err b{color:var(--resp)}
+
+main{display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:0}
+@media (max-width:900px){body{overflow:auto}main{grid-template-columns:1fr}.sky{height:62vh}}
+
+/* constelación */
+.sky{position:relative;overflow:hidden;min-height:0}
+.nebula{position:absolute;inset:-6%;background:#05070a url("/monitor/fondo.jpg") center/cover no-repeat;animation:drift 90s ease-in-out infinite alternate;filter:saturate(1.1)}
+#stars{position:absolute;inset:0;width:100%;height:100%}
+#graph{position:absolute;inset:0;width:100%;height:100%}
+.edge{stroke:rgba(143,153,168,.18);stroke-width:1.2}
+.edge.hot{stroke:rgba(242,179,61,.55)}
+.node{cursor:default}
+.node .halo{fill:rgba(11,14,19,.72);stroke:var(--line);stroke-width:1.5;transition:stroke .3s,filter .3s}
+.node .ico{color:var(--muted);transition:color .3s}
+.node text{fill:var(--muted);font:600 13px var(--body);text-anchor:middle;paint-order:stroke;stroke:rgba(5,7,10,.85);stroke-width:4px;transition:fill .3s}
+.node.active .halo{stroke:var(--fg);filter:drop-shadow(0 0 10px rgba(230,233,239,.35))}
+.node.active .ico,.node.active text{color:var(--fg);fill:var(--fg)}
+.node.unknown .halo{stroke:var(--deny)} .node.unknown .ico{color:var(--deny)} .node.unknown text{fill:var(--deny)}
+.node.core .halo{stroke:var(--core);stroke-width:2.5}
+.node.core .ico{color:var(--core)} .node.core text{fill:var(--core);font-size:15px}
+.node.core.flash-allow .halo{stroke:var(--allow);filter:drop-shadow(0 0 22px var(--allow))}
+.node.core.flash-deny .halo{stroke:var(--deny);filter:drop-shadow(0 0 22px var(--deny))}
+.node.core.flash-allow .ico{color:var(--allow)} .node.core.flash-deny .ico{color:var(--deny)}
+.node.broker .halo{stroke:var(--resp)} .node.broker .ico{color:var(--resp)}
+.node.enter{animation:enter 1.2s ease-out}
+.token{filter:drop-shadow(0 0 7px currentColor)}
+.legend{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:14px;display:flex;flex-wrap:wrap;gap:6px 14px;font:12px var(--mono);color:var(--muted);background:rgba(11,14,19,.6);padding:6px 10px;border-radius:8px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+
+/* relato */
+aside{border-left:1px solid var(--line);background:var(--panel);display:grid;grid-template-rows:auto 1fr;min-height:0;backdrop-filter:blur(8px)}
+@media (max-width:900px){aside{border-left:0;border-top:1px solid var(--line)}}
+.tabs{display:flex;gap:4px;padding:10px 12px 0;border-bottom:1px solid var(--line)}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);font:700 14px var(--display);padding:8px 10px}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--core)}
+.pane{min-height:0;overflow:auto;display:grid;align-content:start}
+.pane-hint{margin:0;padding:10px 16px 4px;color:var(--muted);font-size:13px}
+#feed{list-style:none;margin:0;padding:4px 12px 16px;display:grid;gap:10px;align-content:start}
+#appList{list-style:none;margin:0;padding:6px 12px 16px;display:grid;gap:8px}
+.app{border:1px solid var(--line);border-radius:10px;background:var(--panel-solid);padding:10px 12px;display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:4px 12px;align-items:center}
+.app.flash{border-color:var(--core)}
+.app .ico{width:32px;height:32px;color:var(--muted);grid-row:span 2}
+.app.up .ico{color:var(--allow)}
+.app b{font:700 14px var(--body)}
+.app .why{grid-column:2 / 4;font-size:12px;color:var(--muted)}
+.app .why .warn{color:var(--core)} .app .why .block{color:var(--deny)}
+.app .st{font:600 11px var(--mono);border-radius:999px;padding:1px 8px;border:1px solid currentColor;white-space:nowrap;justify-self:start}
+.st-up{color:var(--allow)} .st-down{color:var(--idle)} .st-remote-down{color:var(--deny)} .st-starting,.st-stopping{color:var(--core)}
+.app .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+button.danger{border-color:var(--deny);color:var(--deny)}
+.app button:disabled{opacity:.45;cursor:not-allowed}
+.node.down{opacity:.4}
+.flow{border:1px solid var(--line);border-radius:10px;background:var(--panel-solid);padding:10px 12px;display:grid;gap:6px;cursor:pointer;text-align:left;width:100%;animation:in .35s ease-out}
+.flow:hover{border-color:var(--core)}
+.flow-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.route{font:600 13px var(--body);min-width:0;overflow-wrap:anywhere}
+.state{font:600 11px var(--mono);border-radius:999px;padding:1px 8px;border:1px solid currentColor;white-space:nowrap}
+.st-running{color:var(--req)} .st-check{color:var(--muted)} .st-done{color:var(--allow)} .st-deny{color:var(--deny)} .st-error{color:var(--resp)}
+.lines{display:grid;gap:3px;font-size:13px;color:var(--muted)}
+.lines div{display:grid;grid-template-columns:auto 1fr;gap:8px}
+.lines time{font:11px var(--mono);font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);font-size:14px;padding:10px 4px;display:grid;gap:8px}
+.empty code{font:12px var(--mono);color:var(--core)}
+
+/* panel de detalle: secuencia */
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel-solid);color:var(--fg);padding:0;width:min(960px,calc(100vw - 32px));max-height:calc(100vh - 32px)}
+dialog::backdrop{background:rgba(5,7,10,.7)}
+.dlg{display:grid;gap:14px;padding:18px 20px 20px;overflow:auto;max-height:calc(100vh - 34px)}
+.dlg-head{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.dlg-head p{margin:2px 0 0;color:var(--muted);font:12px var(--mono);overflow-wrap:anywhere}
+.seq-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.seq-wrap svg{display:block}
+.lifeline{stroke:var(--line);stroke-dasharray:3 4}
+.lane{fill:var(--fg);font:700 13px var(--body);text-anchor:middle}
+.lane.core{fill:var(--core)}
+.msg{font:12px var(--mono);fill:var(--fg);text-anchor:middle}
+.msg-t{font:11px var(--mono);fill:var(--muted)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fact{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:2px;min-width:0}
+.fact span{font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fact b{font-weight:700;overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td.mono{font-size:12px;overflow-wrap:anywhere}
+.tbl{overflow-x:auto}
+
+/* token */
+.login{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,7,10,.75);z-index:5;padding:16px}
+.login form{background:var(--panel-solid);border:1px solid var(--line);border-radius:14px;padding:22px;display:grid;gap:12px;width:min(420px,100%)}
+.login p{margin:0;color:var(--muted);font-size:14px}
+.login input{font:14px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+.login .bad{color:var(--deny);font-size:13px}
+
+.k-request{color:var(--req)} .k-decision{color:var(--core)} .k-allow{color:var(--allow)} .k-deny{color:var(--deny)}
+.k-response{color:var(--resp)} .k-receipt{color:var(--receipt)} .k-error{color:var(--deny)}
+@keyframes pulse{50%{opacity:.4}}
+@keyframes drift{from{transform:scale(1.04) translate(0,0)}to{transform:scale(1.12) translate(-2%,1.5%)}}
+@keyframes enter{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+@keyframes in{from{opacity:.2;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.nebula,.live.on i,.flow,.node.enter{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="ico" data-icon="core"></span><div><h1>AI OS Core</h1><small id="ver">monitor del ecosistema</small></div></div>
+  <span class="live" id="live"><i></i><span>conectando…</span></span>
+  <div class="stats">
+    <div class="stat"><b id="sFlows">0</b><span>peticiones</span></div>
+    <div class="stat allow"><b id="sAllow">0</b><span>autorizadas</span></div>
+    <div class="stat deny"><b id="sDeny">0</b><span>denegadas</span></div>
+    <div class="stat err"><b id="sErr">0</b><span>con error</span></div>
+  </div>
+  <button id="tokBtn" type="button">Token</button>
+</header>
+
+<main>
+  <section class="sky" aria-label="Constelación de apps alrededor de AI OS Core">
+    <div class="nebula"></div>
+    <canvas id="stars"></canvas>
+    <svg id="graph" viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Apps del ecosistema y mensajes entre ellas"></svg>
+    <div class="legend">
+      <span><i style="background:var(--req)"></i>petición</span>
+      <span><i style="background:var(--core)"></i>consulta a Core</span>
+      <span><i style="background:var(--allow)"></i>autorizada</span>
+      <span><i style="background:var(--deny)"></i>denegada / error</span>
+      <span><i style="background:var(--resp)"></i>respuesta</span>
+      <span><i style="background:var(--receipt)"></i>recibo</span>
+    </div>
+  </section>
+  <aside>
+    <div class="tabs" role="tablist" aria-label="Paneles">
+      <button type="button" role="tab" id="tabFeed" aria-controls="paneFeed" aria-selected="true">Qué está pasando</button>
+      <button type="button" role="tab" id="tabApps" aria-controls="paneApps" aria-selected="false">Aplicaciones <span id="appsCount" class="mono"></span></button>
+    </div>
+    <div id="paneFeed" role="tabpanel" aria-labelledby="tabFeed" class="pane">
+      <p class="pane-hint">Pulsa una petición para ver su recorrido completo.</p>
+      <ul id="feed" aria-live="polite"></ul>
+    </div>
+    <div id="paneApps" role="tabpanel" aria-labelledby="tabApps" class="pane" hidden>
+      <p class="pane-hint">Arranca y para desde aquí el resto del ecosistema. Una app que depende de otra no se puede arrancar hasta que esa otra esté en marcha.</p>
+      <ul id="appList"></ul>
+    </div>
+  </aside>
+</main>
+
+<dialog id="detail" aria-labelledby="dTitle">
+  <div class="dlg">
+    <div class="dlg-head"><div><h2 id="dTitle">Recorrido</h2><p id="dSub"></p></div><button type="button" id="dClose">Cerrar</button></div>
+    <div class="facts" id="dFacts"></div>
+    <div class="seq-wrap" id="dSeq"></div>
+    <div class="tbl"><table><thead><tr><th>Hora</th><th>Paso</th><th>Datos</th></tr></thead><tbody id="dRows"></tbody></table></div>
+  </div>
+</dialog>
+
+<div class="login" id="login" hidden>
+  <form id="loginForm">
+    <h2>Token de AI OS Core</h2>
+    <p>Core pide un token para enseñar los flujos. Usa el token común (<span class="mono">AI_OS_API_TOKEN</span>) o el de cualquier app. Se guarda sólo en este navegador.</p>
+    <label for="tokIn" class="mono" style="font-size:12px;color:var(--muted)">Token</label>
+    <input id="tokIn" type="password" autocomplete="off" required>
+    <span class="bad" id="tokBad" hidden>Core no acepta ese token.</span>
+    <button type="submit">Conectar</button>
+  </form>
+</div>
+
+<script>
+"use strict";
+const NS = "http://www.w3.org/2000/svg";
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const NAMES = {core:"AI OS Core", ai_broker:"AI Broker", broker:"AI Broker", chatygpt:"ChatyGPT", athena:"Athena", agora:"Agora",
+  gestion_tareas:"Gestión Tareas IA", model_drift:"Model_Drift", knowledge_orchestrator:"Knowledge Orch.", local_ai_lab:"Local AI Lab",
+  trading_ai:"Trading AI"};
+const BROKERS = new Set(["ai_broker", "broker"]);
+const name = id => NAMES[id] || id;
+const $ = id => document.getElementById(id);
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const hhmmss = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString("es-ES", {hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"}) + "." + String(d.getMilliseconds()).padStart(3, "0").slice(0, 2); };
+
+// ---------- token ----------
+let token = "";
+try { token = localStorage.getItem("aios.monitor.token") || ""; } catch {}
+const authHeaders = () => token ? {Authorization: "Bearer " + token} : {};
+async function api(path) {
+  const r = await fetch(path, {headers: authHeaders()});
+  if (r.status === 401) { askToken(); throw new Error("401"); }
+  if (!r.ok) throw new Error(path + " → " + r.status);
+  return r.json();
+}
+function askToken(bad) { $("login").hidden = false; $("tokBad").hidden = !bad; $("tokIn").focus(); setLive("err", "falta el token"); }
+$("tokBtn").addEventListener("click", () => askToken(false));
+$("loginForm").addEventListener("submit", e => {
+  e.preventDefault(); token = $("tokIn").value.trim();
+  try { localStorage.setItem("aios.monitor.token", token); } catch {}
+  $("login").hidden = true; start();
+});
+
+// ---------- iconos (de Magnific, en /monitor/iconos; se tiñen con currentColor) ----------
+const iconCache = {};
+function iconSvg(id) {
+  const file = id === "broker" ? "ai_broker" : id;
+  return iconCache[file] ||= fetch(`/monitor/iconos/${file}.svg`).then(r => r.ok ? r.text() : fetch("/monitor/iconos/desconocida.svg").then(x => x.text()));
+}
+async function putIcon(target, id, size, x, y) {
+  const txt = await iconSvg(id);
+  const doc = new DOMParser().parseFromString(txt, "image/svg+xml").documentElement;
+  if (target instanceof SVGElement) { doc.setAttribute("x", x); doc.setAttribute("y", y); }
+  doc.setAttribute("width", size); doc.setAttribute("height", size); doc.classList.add("ico-svg");
+  target.appendChild(document.importNode(doc, true));
+}
+document.querySelectorAll("[data-icon]").forEach(s => putIcon(s, s.dataset.icon, 30));
+
+// ---------- fondo: estrellas que titilan sobre la nebulosa ----------
+const cv = $("stars"), cx = cv.getContext("2d");
+let stars = [];
+function sizeStars() {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  stars = Array.from({length: Math.round(r.width * r.height / 5200)}, () => ({x: Math.random() * r.width, y: Math.random() * r.height,
+    r: Math.random() * 1.1 + .25, p: Math.random() * 6.28, s: .4 + Math.random() * 1.2, v: (Math.random() - .5) * .04}));
+}
+function drawStars(t) {
+  const r = cv.getBoundingClientRect(); cx.clearRect(0, 0, r.width, r.height);
+  for (const s of stars) {
+    if (!REDUCED) { s.x += s.v; if (s.x < 0) s.x = r.width; if (s.x > r.width) s.x = 0; }
+    const a = REDUCED ? .5 : .25 + .55 * (.5 + .5 * Math.sin(s.p + t / 1000 * s.s));
+    cx.fillStyle = `rgba(214,224,240,${a.toFixed(3)})`; cx.beginPath(); cx.arc(s.x, s.y, s.r, 0, 6.283); cx.fill();
+  }
+  if (!REDUCED) requestAnimationFrame(drawStars);
+}
+addEventListener("resize", sizeStars); sizeStars(); requestAnimationFrame(drawStars);
+
+// ---------- constelación ----------
+const G = $("graph"), CX = 470, CY = 320, RX = 330, RY = 235, BROKER_POS = [905, 320];
+const gEdges = el("g", {}, G), gNodes = el("g", {}, G), gFx = el("g", {}, G);
+const apps = new Map();   // id -> {known, g, pos}
+let brokerId = "ai_broker";
+
+function layout() {
+  const ring = [...apps.keys()].filter(id => id !== "core" && !BROKERS.has(id));
+  // El anillo deja libre el sector del este: por ahí sale la línea hacia el Broker
+  const GAP = Math.PI / 7;
+  ring.forEach((id, i) => {
+    const a = GAP + (2 * Math.PI - 2 * GAP) * (i + .5) / ring.length;
+    apps.get(id).pos = [CX + Math.cos(a) * RX * .92, CY - Math.sin(a) * RY];
+  });
+  for (const id of apps.keys()) if (BROKERS.has(id)) apps.get(id).pos = BROKER_POS;
+  apps.get("core").pos = [CX, CY];
+  gEdges.innerHTML = "";
+  for (const [id, a] of apps) if (id !== "core") a.edge = el("line", {class: "edge", x1: CX, y1: CY, x2: a.pos[0], y2: a.pos[1]}, gEdges);
+  for (const [, a] of apps) a.g.setAttribute("transform", `translate(${a.pos[0]} ${a.pos[1]})`);
+}
+
+function addApp(id, known, animate) {
+  if (apps.has(id)) { const a = apps.get(id); if (known && !a.known) { a.known = true; a.g.classList.remove("unknown"); a.label.textContent = name(id); a.g.querySelector("title").textContent = name(id); a.ico.replaceChildren(); putIcon(a.ico, id, a.R * 1.25, -a.R * .625, -a.R * .625); } return; }
+  const isCore = id === "core", isBroker = BROKERS.has(id), R = isCore ? 46 : 32;
+  const g = el("g", {class: "node" + (isCore ? " core" : "") + (isBroker ? " broker" : "") + (known ? "" : " unknown")}, gNodes);
+  const inner = el("g", {class: animate ? "enter" : ""}, g);
+  el("circle", {class: "halo", r: R}, inner);
+  const ico = el("g", {class: "ico"}, inner);
+  putIcon(ico, known || isCore || isBroker ? id : "desconocida", R * 1.25, -R * .625, -R * .625);
+  const t = el("text", {y: R + 20}, inner); t.textContent = name(id) + (known ? "" : " · sin registrar");
+  el("title", {}, g).textContent = known ? name(id) : `${id}: Core no la tiene registrada`;
+  apps.set(id, {known, g, pos: [CX, CY], label: t, ico, R});
+  g.addEventListener("click", () => showApp(id));
+  if (isBroker) brokerId = id;
+  layout();
+}
+
+const pulseTimers = new Map();
+function activate(id) {
+  const a = apps.get(id); if (!a) return;
+  a.g.classList.add("active"); a.edge?.classList.add("hot");
+  clearTimeout(pulseTimers.get(id));
+  pulseTimers.set(id, setTimeout(() => { a.g.classList.remove("active"); a.edge?.classList.remove("hot"); }, 2600));
+}
+function flashCore(ok) {
+  const g = apps.get("core").g; g.classList.remove("flash-allow", "flash-deny"); void g.getBBox();
+  g.classList.add(ok ? "flash-allow" : "flash-deny");
+  clearTimeout(flashCore.t); flashCore.t = setTimeout(() => g.classList.remove("flash-allow", "flash-deny"), 1800);
+}
+
+const ease = k => k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+function travel(from, to, cls, ms = 1100) {
+  return new Promise(res => {
+    const A = apps.get(from), B = apps.get(to);
+    if (!A || !B) return res();
+    activate(from);
+    const [x1, y1] = A.pos, [x2, y2] = B.pos;
+    // Curva suave: el destello no atraviesa Core en línea recta salvo que vaya a Core
+    const mx = (x1 + x2) / 2 + (y2 - y1) * .18, my = (y1 + y2) / 2 - (x2 - x1) * .18;
+    const trail = el("path", {d: `M${x1} ${y1} Q${mx} ${my} ${x2} ${y2}`, fill: "none", stroke: "currentColor", "stroke-width": 2, "stroke-dasharray": "4 6", opacity: .0, class: cls}, gFx);
+    const dot = el("circle", {r: 7, class: "token " + cls, fill: "currentColor"}, gFx);
+    const len = trail.getTotalLength();
+    if (REDUCED) { activate(to); trail.remove(); dot.remove(); return res(); }
+    const t0 = performance.now();
+    (function step(t) {
+      const k = Math.min(1, (t - t0) / ms), p = trail.getPointAtLength(len * ease(k));
+      dot.setAttribute("cx", p.x); dot.setAttribute("cy", p.y); trail.setAttribute("opacity", .55 * Math.sin(Math.PI * k));
+      if (k < 1) requestAnimationFrame(step); else { activate(to); trail.remove(); dot.remove(); res(); }
+    })(t0);
+  });
+}
+
+// Cola de animación: los pasos se ven en orden aunque lleguen de golpe
+let anim = Promise.resolve(), queued = 0;
+function animateStep(s) {
+  if (queued > 40) return;  // shortcut: con avalanchas se saltan animaciones (el relato sigue completo); si molesta, agrupar por flujo
+  queued++;
+  anim = anim.then(() => playStep(s)).finally(() => queued--);
+}
+async function playStep(s) {
+  const fast = queued > 8 ? 450 : 1100;
+  if (s.kind === "decision") {
+    const ok = s.details?.authorization === "ALLOW" && s.details?.executable !== false;
+    await travel(s.source, "core", "k-decision", fast);
+    flashCore(ok);
+    await travel("core", s.source, ok ? "k-allow" : "k-deny", fast * .8);
+  } else if (s.kind === "receipt") {
+    await travel(s.source, "core", "k-receipt", fast);
+  } else if (s.kind === "request") {
+    await travel(s.source, s.target, "k-request", fast);
+  } else if (s.kind === "response") {
+    await travel(s.target, s.source, "k-response", fast);
+  } else if (s.kind === "error") {
+    await travel(s.target, s.source, "k-error", fast);
+  }
+}
+
+// ---------- flujos y relato ----------
+const flows = new Map();   // flow_id -> {id, steps:[], li}
+const TERMINAL_OK = new Set(["succeeded"]), TERMINAL_BAD = new Set(["failed_terminal", "cancelled"]);
+
+function flowState(f) {
+  if (f.steps.some(s => s.kind === "decision" && (s.details?.authorization !== "ALLOW" || s.details?.executable === false))) return ["deny", "denegada"];
+  if (f.steps.some(s => s.kind === "error" || (s.kind === "receipt" && TERMINAL_BAD.has(s.details?.status)))) return ["error", "con error"];
+  const origin = f.steps.find(s => s.kind === "request")?.source;
+  // Con petición, acaba cuando la respuesta vuelve a quien la hizo; sin ella, con un recibo bueno
+  if (origin) return f.steps.some(s => s.kind === "response" && s.source === origin) ? ["done", "completada"] : ["running", "en curso"];
+  if (f.steps.some(s => s.kind === "receipt" && TERMINAL_OK.has(s.details?.status))) return ["done", "completada"];
+  if (f.steps.every(s => s.kind === "decision")) return ["check", "solo consulta"];
+  return ["running", "en curso"];
+}
+function sentence(s) {
+  const d = s.details || {}, S = `<b>${esc(name(s.source))}</b>`, T = `<b>${esc(name(s.target))}</b>`;
+  const extra = s.summary ? ` · ${esc(s.summary)}` : "";
+  switch (s.kind) {
+    case "request": return `${S} envía una petición a ${T}${extra}`;
+    case "response": return `${S} recibe la respuesta de ${T}${d.latency_ms != null ? ` en ${(d.latency_ms / 1000).toFixed(1)} s` : ""}${d.model ? ` (${esc(d.model)})` : ""}`;
+    case "error": return `${S} no obtiene respuesta de ${T}${extra}`;
+    case "decision": {
+      const ok = d.authorization === "ALLOW" && d.executable !== false;
+      return `${S} pregunta a Core si puede usar ${esc(name(d.destination === "broker" ? brokerId : d.destination || "?"))}: <span class="${ok ? "k-allow" : "k-deny"}">${ok ? "autorizado" : esc(d.authorization || "denegado")}</span>${d.data_classification ? ` (dato ${esc(d.data_classification)})` : ""}`;
+    }
+    case "receipt": return `${S} entrega a Core el recibo: ${esc(d.status || s.summary)}`;
+  }
+  return esc(s.summary);
+}
+function route(f) {
+  const seq = [];
+  for (const s of f.steps) {
+    // La ruta es el camino de la petición; Core sale aparte, en el estado y en el detalle
+    if (s.kind === "request") for (const a of [s.source, s.target]) if (!seq.includes(a)) seq.push(a);
+  }
+  return seq.length ? seq.map(name).join(" → ") : `${name(f.steps[0].source)} → ${name("core")}`;
+}
+function renderFlow(f) {
+  const [st, label] = flowState(f);
+  if (!f.li) {
+    f.li = document.createElement("li");
+    const b = document.createElement("button"); b.type = "button"; b.className = "flow";
+    b.addEventListener("click", () => openDetail(f.id));
+    f.li.appendChild(b);
+  }
+  f.li.firstChild.innerHTML = `<div class="flow-head"><span class="route">${esc(route(f))}</span><span class="state st-${st}">${label}</span></div>
+    <div class="lines">${f.steps.slice(-6).map(s => `<div><time>${hhmmss(s.at)}</time><span>${sentence(s)}</span></div>`).join("")}</div>`;
+  const feed = $("feed");
+  if (feed.firstChild !== f.li) feed.prepend(f.li);
+  while (feed.children.length > 120) { const last = feed.lastChild; flows.forEach(x => { if (x.li === last) x.li = null; }); last.remove(); }
+  $("feed").querySelector(".empty")?.remove();
+}
+function stats() {
+  let a = 0, d = 0, e = 0;
+  for (const f of flows.values()) { const [st] = flowState(f); if (st === "deny") d++; else if (st === "error") e++; if (f.steps.some(s => s.kind === "decision" && s.details?.authorization === "ALLOW")) a++; }
+  $("sFlows").textContent = flows.size; $("sAllow").textContent = a; $("sDeny").textContent = d; $("sErr").textContent = e;
+}
+
+let lastId = 0;
+function ingest(s, live) {
+  if (s.id <= lastId) return;
+  lastId = s.id;
+  for (const id of [s.source, s.target]) if (id !== "core" && !apps.has(id)) addApp(id, BROKERS.has(id), live);
+  let f = flows.get(s.flow_id);
+  if (!f) { f = {id: s.flow_id, steps: []}; flows.set(s.flow_id, f); }
+  f.steps.push(s);
+  renderFlow(f);
+  if (live) animateStep(s);
+  if ($("detail").open && $("detail").dataset.flow === s.flow_id) openDetail(s.flow_id);
+}
+
+// ---------- detalle: secuencia C ----------
+function openDetail(flowId) {
+  const f = flows.get(flowId); if (!f) return;
+  const dlg = $("detail"); dlg.dataset.flow = flowId;
+  const [st, label] = flowState(f);
+  $("dTitle").innerHTML = `${esc(route(f))} <span class="state st-${st}" style="font-size:12px;vertical-align:middle">${label}</span>`;
+  $("dSub").textContent = "flow_id " + flowId;
+
+  const dec = f.steps.filter(s => s.kind === "decision"), rec = f.steps.filter(s => s.kind === "receipt");
+  const resp = f.steps.filter(s => s.kind === "response");
+  const t0 = new Date(f.steps[0].at), t1 = new Date(f.steps[f.steps.length - 1].at);
+  const fact = (k, v) => `<div class="fact"><span>${k}</span><b>${v}</b></div>`;
+  $("dFacts").innerHTML = [
+    fact("Política", dec.length ? dec.map(s => `${esc(s.details.scope)} → ${esc(s.details.authorization)}`).join("<br>") : "sin consulta a Core"),
+    fact("Clasificación del dato", dec.map(s => esc(s.details.data_classification || "no declarada")).join(", ") || "—"),
+    fact("Modelo", [...new Set(resp.map(s => s.details?.model).filter(Boolean))].map(esc).join(", ") || "—"),
+    fact("Tiempo total", isNaN(t1 - t0) ? "—" : `${((t1 - t0) / 1000).toFixed(2)} s`),
+    fact("Recibo", rec.length ? rec.map(s => `${esc(s.details.status)} · ${esc(s.details.receiver_service)}`).join("<br>") : "sin recibo"),
+  ].join("");
+
+  // Columnas: participantes en orden de aparición, Core siempre presente
+  const lanes = [];
+  const push = a => { if (!lanes.includes(a)) lanes.push(a); };
+  for (const s of f.steps) { push(s.source); push(s.kind === "decision" || s.kind === "receipt" ? "core" : s.target); }
+  const W = Math.max(560, lanes.length * 170), H = 70 + f.steps.length * 46 + 20, X = a => 85 + lanes.indexOf(a) * ((W - 170) / Math.max(1, lanes.length - 1));
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": "Diagrama de secuencia del recorrido"});
+  el("defs", {}, svg).innerHTML = '<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker>';
+  for (const a of lanes) {
+    el("line", {class: "lifeline", x1: X(a), y1: 40, x2: X(a), y2: H - 10}, svg);
+    const t = el("text", {class: "lane" + (a === "core" ? " core" : ""), x: X(a), y: 26}, svg); t.textContent = name(a);
+  }
+  f.steps.forEach((s, i) => {
+    const y = 70 + i * 46;
+    let from = s.source, to = s.target, cls = "k-" + s.kind, label = s.summary || s.kind;
+    if (s.kind === "decision") { to = "core"; const ok = s.details.authorization === "ALLOW" && s.details.executable !== false; cls = ok ? "k-allow" : "k-deny"; label = `${s.details.authorization} · ${s.details.data_classification || "sin clasificar"}`; }
+    if (s.kind === "receipt") { to = "core"; label = "recibo · " + (s.details.status || ""); }
+    if (s.kind === "response" || s.kind === "error") { [from, to] = [s.target, s.source]; label = s.kind === "error" ? "error · " + (s.summary || "") : [s.details?.model, s.details?.latency_ms != null ? (s.details.latency_ms / 1000).toFixed(1) + " s" : ""].filter(Boolean).join(" · ") || "respuesta"; }
+    const g = el("g", {class: cls}, svg);
+    if (from === to) el("path", {d: `M${X(from)} ${y} h40 v14 h-36`, fill: "none", stroke: "currentColor", "stroke-width": 2, "marker-end": "url(#arr)"}, g);
+    else el("line", {x1: X(from), y1: y, x2: X(to), y2: y, stroke: "currentColor", "stroke-width": 2, "marker-end": "url(#arr)"}, g);
+    const tx = el("text", {class: "msg", x: (X(from) + X(to)) / 2 + (from === to ? 60 : 0), y: y - 7}, svg); tx.textContent = label;
+    const tt = el("text", {class: "msg-t", x: 8, y: y + 4}, svg); tt.textContent = hhmmss(s.at).slice(0, 8);
+  });
+  $("dSeq").replaceChildren(svg);
+
+  $("dRows").innerHTML = f.steps.map(s => `<tr><td class="mono">${hhmmss(s.at)}</td><td>${sentence(s)}</td><td class="mono">${esc(JSON.stringify(s.details))}</td></tr>`).join("");
+  if (!dlg.open) dlg.showModal();
+}
+$("dClose").addEventListener("click", () => $("detail").close());
+$("detail").addEventListener("click", e => { if (e.target === $("detail")) $("detail").close(); });
+
+// ---------- lanzador: arrancar el ecosistema respetando dependencias ----------
+let launcher = [];
+const starting = new Map(), stopping = new Map(), launchError = new Map();   // id -> plazo / último error
+let confirming = null;   // app cuya parada espera confirmación (otras dependen de ella)
+const STOP_LIMIT_MS = 30000;
+const STARTUP_LIMIT_MS = 90000;
+
+function selectTab(which) {
+  const onApps = which === "apps";
+  $("tabApps").setAttribute("aria-selected", onApps); $("tabFeed").setAttribute("aria-selected", !onApps);
+  $("paneApps").hidden = !onApps; $("paneFeed").hidden = onApps;
+}
+$("tabFeed").addEventListener("click", () => selectTab("feed"));
+$("tabApps").addEventListener("click", () => selectTab("apps"));
+
+function showApp(id) {
+  if (!launcher.some(a => a.id === id)) return;
+  selectTab("apps");
+  const li = document.querySelector(`[data-app="${CSS.escape(id)}"]`);
+  if (li) { li.scrollIntoView({block: "nearest"}); li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1500); }
+}
+
+function renderLauncher() {
+  const list = $("appList");
+  const up = launcher.filter(a => a.running).length;
+  $("appsCount").textContent = launcher.length ? `${up}/${launcher.length}` : "";
+  if (!launcher.length) {
+    list.innerHTML = `<li class="empty"><span>Core no tiene catálogo de apps.</span><span>Créalo en <code>config/apps.json</code> o indica otro con <code>AI_OS_APPS_FILE</code>.</span></li>`;
+    return;
+  }
+  list.innerHTML = "";
+  for (const a of launcher) {
+    const deadline = starting.get(a.id);
+    if (deadline && Date.now() > deadline) { starting.delete(a.id); launchError.set(a.id, "No ha dado señales de vida en 90 s. Mira su ventana."); }
+    const stopDeadline = stopping.get(a.id);
+    if (stopDeadline && Date.now() > stopDeadline) { stopping.delete(a.id); launchError.set(a.id, "Sigue en marcha 30 s después de pararla."); }
+    const [st, label] = starting.has(a.id) ? ["starting", "arrancando…"] : stopping.has(a.id) ? ["stopping", "parando…"]
+      : a.running ? ["up", "en marcha"]
+      : a.kind === "remote" ? ["remote-down", "no responde"] : ["down", "parada"];
+    const why = [];
+    if (launchError.has(a.id)) why.push(`<span class="block">${esc(launchError.get(a.id))}</span>`);
+    if (!a.running && a.blocked_by.length) why.push(`<span class="block">Antes hay que arrancar ${esc(a.blocked_by.join(", "))}.</span>`);
+    else if (a.requires.length) why.push(`Necesita ${esc(a.requires.map(name).join(", "))}.`);
+    if (!a.running && a.warnings.length) why.push(`<span class="warn">${esc(a.warnings.join(", "))} no responde: arrancará, pero sin IA.</span>`);
+    if (a.kind === "remote" || (!a.running && a.note)) why.push(esc(a.note));
+    if (confirming === a.id) why.unshift(`<span class="warn">${esc(a.needed_by.join(", "))} depende de ${esc(a.name)} y dejará de funcionar.</span>`);
+    else if (a.running && a.needed_by.length) why.push(`La usa ${esc(a.needed_by.join(", "))}.`);
+    const li = document.createElement("li");
+    li.className = "app" + (a.running ? " up" : ""); li.dataset.app = a.id;
+    const ico = document.createElement("span"); ico.className = "ico"; putIcon(ico, a.id, 32);
+    li.append(ico);
+    li.insertAdjacentHTML("beforeend", `<div><b>${esc(a.name)}</b> <span class="st st-${st}">${label}</span></div>`);
+    if (a.kind !== "remote" && !a.running) {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = "Arrancar";
+      b.disabled = !a.can_start || starting.has(a.id);
+      if (a.blocked_by.length) b.title = `Antes hay que arrancar ${a.blocked_by.join(", ")}`;
+      b.addEventListener("click", () => startApp(a.id));
+      li.append(b);
+    } else if (a.running && a.can_stop) {
+      const acts = document.createElement("span"); acts.className = "acts";
+      const button = (text, onClick, danger) => {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = text;
+        b.disabled = stopping.has(a.id); if (danger) b.className = "danger";
+        b.addEventListener("click", onClick); acts.append(b);
+      };
+      if (confirming === a.id) {
+        button("Parar igualmente", () => { confirming = null; stopApp(a.id, true); }, true);
+        button("Cancelar", () => { confirming = null; renderLauncher(); });
+      } else {
+        // Sólo se pregunta cuando parar deja colgada a otra app
+        button("Parar", () => a.needed_by.length ? (confirming = a.id, renderLauncher()) : stopApp(a.id, false));
+      }
+      li.append(acts);
+    } else li.append(document.createElement("span"));
+    li.insertAdjacentHTML("beforeend", `<div class="why">${why.join(" ") || "&nbsp;"}</div>`);
+    list.append(li);
+  }
+}
+
+async function refreshLauncher() {
+  launcher = (await api("/api/v1/apps")).apps;
+  for (const a of launcher) {
+    if (!NAMES[a.id]) NAMES[a.id] = a.name;  // el catálogo pone nombre a las apps que el monitor no conoce
+    if (!apps.has(a.id)) addApp(a.id, true, true); else addApp(a.id, true, false);  // estar en el catálogo es estar registrada
+    apps.get(a.id).g.classList.toggle("down", !a.running);
+    if (a.running) { starting.delete(a.id); if (!stopping.has(a.id)) launchError.delete(a.id); }
+    else { stopping.delete(a.id); if (confirming === a.id) confirming = null; }
+  }
+  renderLauncher();
+  return launcher;
+}
+async function launcherLoop() {
+  try { await refreshLauncher(); } catch {}
+  setTimeout(launcherLoop, starting.size || stopping.size ? 2500 : 15000);
+}
+
+async function startApp(id) {
+  launchError.delete(id); starting.set(id, Date.now() + STARTUP_LIMIT_MS); renderLauncher();
+  try {
+    const r = await fetch(`/api/v1/apps/${encodeURIComponent(id)}/start`, {method: "POST", headers: authHeaders()});
+    if (r.status === 401) { starting.delete(id); return askToken(true); }
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      starting.delete(id);
+      launchError.set(id, e.error?.message || e.detail || `Core contestó ${r.status}.`);
+    }
+  } catch { starting.delete(id); launchError.set(id, "Core no contesta."); }
+  renderLauncher();
+  pollStarting();
+}
+async function stopApp(id, force) {
+  launchError.delete(id); stopping.set(id, Date.now() + STOP_LIMIT_MS); renderLauncher();
+  try {
+    const r = await fetch(`/api/v1/apps/${encodeURIComponent(id)}/stop${force ? "?force=true" : ""}`,
+                          {method: "POST", headers: authHeaders()});
+    if (r.status === 401) { stopping.delete(id); return askToken(true); }
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      stopping.delete(id);
+      launchError.set(id, e.error?.message || e.detail || `Core contestó ${r.status}.`);
+    }
+  } catch { stopping.delete(id); launchError.set(id, "Core no contesta."); }
+  renderLauncher();
+  pollStarting();
+}
+// Mientras algo arranca o se para se mira cada 2,5 s, hasta que cambia o vence su plazo
+function pollStarting() {
+  if ((!starting.size && !stopping.size) || pollStarting.busy) return;
+  pollStarting.busy = true;
+  setTimeout(() => refreshLauncher().catch(() => {}).finally(() => { pollStarting.busy = false; pollStarting(); }), 2500);
+}
+
+// ---------- conexión ----------
+function setLive(cls, text) { $("live").className = "live " + cls; $("live").lastElementChild.textContent = text; }
+let streamCtl = null, retry = 1000;
+async function stream() {
+  streamCtl?.abort(); streamCtl = new AbortController();
+  try {
+    const r = await fetch(`/api/v1/flows/stream?after=${lastId}`, {headers: authHeaders(), signal: streamCtl.signal});
+    if (r.status === 401) return askToken(true);
+    if (!r.ok || !r.body) throw new Error("stream " + r.status);
+    setLive("on", "en vivo"); retry = 1000;
+    const rd = r.body.getReader(), dec = new TextDecoder(); let buf = "";
+    for (;;) {
+      const {value, done} = await rd.read(); if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const block = buf.slice(0, i); buf = buf.slice(i + 2);
+        const data = block.split("\n").filter(l => l.startsWith("data:")).map(l => l.slice(5).trim()).join("\n");
+        if (data) { try { ingest(JSON.parse(data), true); stats(); } catch (e) { console.warn("paso ilegible", e); } }
+      }
+    }
+    // Core corta cada conexión a los 30 s a propósito: se vuelve a enganchar sin avisar
+    setTimeout(stream, 250); return;
+  } catch (e) {
+    if (e.name === "AbortError") return;
+    setLive("err", "reconectando…");
+    setTimeout(stream, retry); retry = Math.min(retry * 2, 15000);
+  }
+}
+
+async function refreshApps() {
+  const list = await api("/api/v1/flows/apps");
+  for (const a of list) addApp(a.app, a.known, true);
+}
+
+async function start() {
+  try {
+    const h = await fetch("/health").then(r => r.json()).catch(() => null);
+    if (h?.version) $("ver").textContent = "monitor del ecosistema · v" + h.version;
+    if (!apps.has("core")) addApp("core", true, false);
+    if (!apps.has("ai_broker")) addApp("ai_broker", true, false);
+    await refreshApps();
+    await refreshLauncher().catch(() => []);  // el catálogo antes que el historial: sus apps no salen como desconocidas
+    const tail = await api("/api/v1/flows/events?limit=400");
+    tail.forEach(s => ingest(s, false));
+    stats();
+    if (!flows.size) $("feed").innerHTML = `<li class="empty"><span>Todavía no ha pasado nada por Core.</span><span>Cuando una app pida algo al Broker verás aquí el recorrido. Para una demostración: <code>python scripts/demo_monitor.py http://127.0.0.1:8000</code></span></li>`;
+    stream();
+    clearInterval(start.t); start.t = setInterval(() => refreshApps().catch(() => {}), 30000);
+    // Al abrir Core con apps paradas, lo primero es poder arrancarlas
+    const list = await refreshLauncher().catch(() => []);
+    if (list.some(a => !a.running && a.kind !== "remote")) selectTab("apps");
+    if (!start.loop) { start.loop = true; setTimeout(launcherLoop, 15000); }
+  } catch (e) {
+    if (e.message !== "401") { setLive("err", "Core no responde"); setTimeout(start, 4000); }
+  }
+}
+start();
+</script>
+</body>
+</html>

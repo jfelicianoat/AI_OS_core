@@ -21,6 +21,7 @@ from ..infrastructure.db.repositories.budget_repo import BudgetRepository
 from ..infrastructure.db.repositories.certifications_repo import CertificationsRepository
 from ..infrastructure.db.repositories.context_repo import ContextRepository
 from ..infrastructure.db.repositories.planner_repo import PlannerRepository
+from ..infrastructure.db.repositories.flows_repo import FlowsRepository
 from ..infrastructure.http.security_client import SecurityHttpClientValidator
 
 from ..application.goals_service import GoalsService
@@ -155,6 +156,11 @@ def get_context_service() -> ContextService:
 @lru_cache()
 def get_planner_repo() -> PlannerRepository:
     return PlannerRepository(get_db_manager())
+
+
+@lru_cache()
+def get_flows_repo() -> FlowsRepository:
+    return FlowsRepository(get_db_manager())
 
 
 @lru_cache()
