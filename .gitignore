@@ -24,3 +24,6 @@ logs/
 .vscode/
 *.swp
 .gstack/
+
+# Ficheros generados (el de conectar el runner lleva un token)
+dist/

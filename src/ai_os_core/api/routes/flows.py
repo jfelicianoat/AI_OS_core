@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
@@ -72,6 +73,39 @@ def record_safely(repo: FlowsRepository, **step) -> None:
         repo.append(**step)
     except Exception:  # noqa: BLE001 — cualquier fallo del registro visual es secundario
         logger.exception("No se pudo anotar el paso de flujo %s", step.get("flow_id"))
+
+
+# Llamadas a Core que ya se anotan con su propio paso (decisión, recibo, salto) o que son del monitor
+_SELF_RECORDED = ("/api/v1/flows", "/api/v1/policies/evaluate", "/api/v1/operations/receipts")
+
+
+async def record_api_call(request: Request, call_next):
+    """Middleware: cada llamada de una app a la API de Core queda como paso `api` en el monitor.
+
+    Sólo metadatos (método, ruta, estado, bytes y latencia), nunca el cuerpo. Sin app que se
+    identifique (token por app o `X-Principal-Id`) no se anota: así el director y el propio
+    monitor, que sondean, no se ven a sí mismos.
+    """
+    started = time.monotonic()
+    response = await call_next(request)
+    path = request.url.path
+    grant = getattr(request.state, "token_grant", None)
+    app_id = (grant.principal if grant and grant.principal else None) or request.headers.get("X-Principal-Id")
+    if not path.startswith("/api/") or path.startswith(_SELF_RECORDED) or not app_id or not re.match(_ID, app_id):
+        return response
+    flow_id = request.headers.get("X-Flow-Id", "")
+    if not (0 < len(flow_id) <= 128 and re.match(_ID, flow_id)):
+        # shortcut: un flujo por app y día; si un día con mucho tráfico pesa en el detalle, partir por hora
+        flow_id = f"api_{app_id[:90]}_{time.strftime('%Y%m%d')}"
+    details = {"method": request.method, "path": path[:300], "status": response.status_code,
+               "latency_ms": int((time.monotonic() - started) * 1000)}
+    for key, headers in (("bytes_in", request.headers), ("bytes_out", response.headers)):
+        if (size := headers.get("content-length", "")).isdigit():
+            details[key] = int(size)
+    await run_in_threadpool(record_safely, get_flows_repo(), flow_id=flow_id, kind="api", source=app_id[:64],
+                            target="core", summary=f"{request.method} {path} · {response.status_code}"[:200],
+                            details=details)
+    return response
 
 
 @router.post("/hops", status_code=201)

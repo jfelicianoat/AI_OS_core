@@ -1,0 +1,173 @@
+{
+  "_comentario": "Catálogo del lanzador de AI OS Core (/monitor). Por app: cómo se arranca (start, cwd), cómo se sabe si está viva (health = URL que contesta, o match = trozo de la línea de comandos del proceso; match también es lo que se cierra con «Parar»), de qué depende (requires bloquea el arranque; uses sólo avisa) y qué variables recibe al arrancar desde Core ({core_url} y {token} = el token de esa app). Las apps arrancadas por su cuenta toman lo mismo de %LOCALAPPDATA%/AIOSCore/conexion/<app>.json, que Core escribe al arrancar. Para una app nueva basta con añadir su entrada aquí y su principal en conexion.PRINCIPALS.",
+  "apps": [
+    {
+      "id": "ai_broker",
+      "name": "AI Broker",
+      "kind": "remote",
+      "health": "http://192.168.1.52:8765/health",
+      "note": "Vive en el PC IA: se arranca allí."
+    },
+    {
+      "id": "agora",
+      "name": "Agora (tablero)",
+      "health": "https://127.0.0.1:8741/api/v1/health",
+      "start": [
+        "C:\\Agora\\Agora Tablero.cmd"
+      ],
+      "cwd": "C:\\Agora",
+      "match": [
+        "agora.api.main",
+        "Agora Tablero.ps1",
+        "Agora Tablero.cmd"
+      ]
+    },
+    {
+      "id": "agora_desktop",
+      "name": "Agora (ventana)",
+      "match": [
+        "agora.desktop.main"
+      ],
+      "start": [
+        "C:\\Agora\\Agora Desktop.cmd"
+      ],
+      "cwd": "C:\\Agora",
+      "requires": [
+        "agora"
+      ],
+      "note": "El tablero KANBAN de Agora; necesita su API en marcha."
+    },
+    {
+      "id": "gestion_tareas",
+      "name": "Gestión Tareas IA",
+      "match": [
+        "GestionTareasIA.exe",
+        "pomodoro_planner"
+      ],
+      "start": [
+        "D:\\Desarrollo\\Proyectos TFM\\Gestion Tareas IA\\ejecutar_app.bat"
+      ],
+      "cwd": "D:\\Desarrollo\\Proyectos TFM\\Gestion Tareas IA",
+      "requires": [
+        "agora"
+      ],
+      "uses": [
+        "ai_broker"
+      ],
+      "note": "Toma sola la URL y el token de Core (carpeta de conexión) y el token del Broker se lo da Core."
+    },
+    {
+      "id": "athena",
+      "name": "Athena",
+      "match": [
+        "athena_desktop",
+        "athena_service"
+      ],
+      "start": [
+        "D:\\Desarrollo\\Proyectos TFM\\Athena\\iniciar-athena.bat"
+      ],
+      "cwd": "D:\\Desarrollo\\Proyectos TFM\\Athena",
+      "uses": [
+        "ai_broker"
+      ],
+      "env": {
+        "ATHENA_CORE_URL": "{core_url}",
+        "ATHENA_CORE_TOKEN": "{token}"
+      }
+    },
+    {
+      "id": "chatygpt",
+      "name": "ChatyGPT",
+      "match": [
+        "chatygpt.exe",
+        "Arrancar ChatyGPT.bat"
+      ],
+      "start": [
+        "D:\\Desarrollo\\Proyectos TFM\\ChatyGPT\\Arrancar ChatyGPT.bat"
+      ],
+      "cwd": "D:\\Desarrollo\\Proyectos TFM\\ChatyGPT",
+      "uses": [
+        "ai_broker"
+      ],
+      "env": {
+        "CHATYGPT_CORE_URL": "{core_url}",
+        "CHATYGPT_CORE_TOKEN": "{token}"
+      }
+    },
+    {
+      "id": "knowledge_orchestrator",
+      "name": "Knowledge Orchestrator",
+      "match": [
+        "knowledge_orchestrator.app",
+        "Knowledge-Orchestrator.exe",
+        "start_orchestrator.bat"
+      ],
+      "start": [
+        "D:\\Desarrollo\\Proyectos TFM\\Knowledge_Orchestrator\\start_orchestrator.bat"
+      ],
+      "cwd": "D:\\Desarrollo\\Proyectos TFM\\Knowledge_Orchestrator",
+      "uses": [
+        "ai_broker"
+      ],
+      "env": {
+        "KO_CORE_URL": "{core_url}",
+        "KO_CORE_TOKEN": "{token}"
+      }
+    },
+    {
+      "id": "local_ai_lab",
+      "name": "Local AI Lab",
+      "match": [
+        "local-ai-lab-desktop.exe"
+      ],
+      "start": [
+        "D:\\Desarrollo\\Proyectos TFM\\Local AI Lab\\iniciar_local_ai_lab.bat"
+      ],
+      "cwd": "D:\\Desarrollo\\Proyectos TFM\\Local AI Lab",
+      "uses": [
+        "ai_broker"
+      ],
+      "env": {
+        "LOCAL_AI_LAB_CORE_URL": "{core_url}",
+        "LOCAL_AI_LAB_CORE_TOKEN": "{token}"
+      }
+    },
+    {
+      "id": "model_drift",
+      "name": "Model_Drift",
+      "match": [
+        "model_drift.gui"
+      ],
+      "start": [
+        "D:\\Desarrollo\\Proyectos TFM\\Model_Drift\\arrancar_model_drift.bat"
+      ],
+      "cwd": "D:\\Desarrollo\\Proyectos TFM\\Model_Drift",
+      "uses": [
+        "ai_broker"
+      ],
+      "env": {
+        "MODEL_DRIFT_CORE_URL": "{core_url}",
+        "MODEL_DRIFT_CORE_TOKEN": "{token}"
+      }
+    },
+    {
+      "id": "trading_ai",
+      "name": "Trading AI",
+      "match": [
+        "TradingAI.exe",
+        "trading_ai.bootstrap"
+      ],
+      "start": [
+        "D:\\Desarrollo\\Trading AI desktop\\Arrancar Trading AI.bat"
+      ],
+      "cwd": "D:\\Desarrollo\\Trading AI desktop",
+      "uses": [
+        "ai_broker"
+      ],
+      "env": {
+        "TRADING_AI_CORE_URL": "{core_url}",
+        "TRADING_AI_CORE_TOKEN": "{token}"
+      }
+    }
+  ]
+}

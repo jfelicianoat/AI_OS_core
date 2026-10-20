@@ -1,4 +1,4 @@
-# AI OS Core — Control Plane (M0) · v0.3.1
+# AI OS Core — Control Plane (M0) · v0.4.2
 
 Control plane determinista, federado y local-first para la plataforma AI OS.
 
@@ -60,12 +60,41 @@ Antes de 0.2.2 ninguna otra app llamaba a Core; estos recorridos la simulaban de
 - `scripts/e2e_resto_apps.py <core> <carpeta_copias>` (18): copias de las bases de ChatyGPT, Knowledge Orchestrator, Trading AI desktop y Local AI Lab. Core recomienda la acción correcta tras una caída para las 4 293 tareas al Broker de ChatyGPT y las 235 de KO (incluidas las que siguen en cola o en curso), y proyecta sus conversaciones, flujos, 11 backtests y 10 registros de experimentos con el estado canónico idéntico al origen. Verde también con Core arrancado sólo con tokens por app.
 - LARM no entra en ningún recorrido: hoy sólo es especificación y prompts, no hay programa que gobernar.
 
+## Cambios 0.4.2: el monitor ve todo el tráfico con la API de Core (2026-10-20)
+Hasta ahora el monitor sólo veía las consultas de política, los recibos y los saltos que cada app
+declaraba. Las demás llamadas de las apps a Core (pedir el token del Broker, publicar
+certificaciones, enviar eventos, proyectar recursos, el planificador…) no se veían.
+- Cada llamada de una app a `/api/...` queda como paso `api` (app → Core): método, ruta, código de
+  respuesta, bytes enviados y recibidos (`bytes_in`/`bytes_out`, de `Content-Length`) y latencia.
+  Nunca el cuerpo. Va en el flujo de su `X-Flow-Id` si lo trae; si no, en el flujo del día de esa
+  app (`api_<app>_<AAAAMMDD>`). Una llamada idéntica a la anterior del mismo flujo no se repite
+  (el runner de Agora publica el token del Broker cada minuto).
+- No se anotan otra vez las que ya tienen paso propio (`/policies/evaluate`, `/operations/receipts`,
+  `/flows/...`) ni las que no dicen qué app son (el director y el propio monitor, que sondean).
+- En el monitor: color propio («datos con Core»), viaje de ida y vuelta a Core (rojo si responde
+  ≥ 400), frase en el relato con lo enviado y recibido, y «Datos movidos» en el detalle de cada flujo
+  (suma también los `bytes_in`/`bytes_out` que las apps pongan en `details` de sus saltos).
+- ChatyGPT 0.4.12 informa además de sus lecturas a Knowledge Orchestrator (`chatygpt_ko_<uuid>`).
+- Test: `tests/integration/test_flows_monitor.py::test_api_calls_of_an_app_are_recorded_as_steps`.
+
+## Cambios 0.4.0: ningún token pegado a mano (2026-10-19)
+Antes había que pegar en cada app su token de Core y el token del AI Broker, que además cambia cada vez que el Broker arranca. Ahora:
+- **Token de cada app con Core: lo genera Core.** Al arrancar, Core crea (una sola vez) un token para el director y para cada app de `conexion.PRINCIPALS` y lo deja, con su URL, en `%LOCALAPPDATA%\AIOSCore\conexion\<app>.json`. Las apps lo leen de ahí si no se lo pasa el lanzador. Un token fijado en `AI_OS_API_TOKEN(S)` manda sobre el generado. El token sigue siendo **uno por app** (fija quién llama, 403 si una app firma como otra): no hay un token común para todo. `AI_OS_AUTO_TOKENS=false` lo desactiva y `AI_OS_CONNECT_DIR` cambia la carpeta.
+- **Token del Broker: lo reparte Core.** El runner de Agora vive junto al Broker en el PC IA y lee del llavero el token que el Broker publica al arrancar. Se lo envía a Core (`PUT /api/v1/credentials/broker`; sólo el principal `agora` o el director, el resto 403) cuando cambia, y cada minuto por si Core se ha reiniciado: Core lo guarda **sólo en memoria**. Las apps lo piden (`GET /api/v1/credentials/broker`, 503 si aún no ha llegado). Si el Broker les responde 401/403, lo vuelven a pedir y repiten la petición una vez.
+- **HTTPS en la red.** `python -m ai_os_core.serve` (lo usa `run.bat`) sirve siempre `http://127.0.0.1:8000` para este equipo. Con `AI_OS_HOST` distinto de 127.0.0.1 abre además `https://<host>:8443` (`AI_OS_TLS_PORT`) con el certificado del tablero de Agora (`C:\Agora\pki\server.crt`/`.key`, o `AI_OS_TLS_CERT`/`AI_OS_TLS_KEY`), firmado por la CA en la que el runner ya confía. El 8000 ya no escucha en la red: por la red no viaja ningún token en claro. Sin certificado, Core se niega a abrirse a la red.
+- **Monitor sin pegar el token.** Core abre el monitor cuando ya contesta, con el token del director tras `#token=`: el navegador no lo envía a ningún servidor, la página lo guarda y lo borra de la barra de direcciones.
+- `Abrir Core a la red.bat` abre ahora el 8443 (rehace la regla del 8000) y genera el «Conectar runner a Core.bat» con la URL `https://`. Ya no hay que pegar el token de Gestión Tareas IA.
+
+Apps que toman su conexión de Core y le piden el token del Broker: Model_Drift 0.4.2, Athena 0.3.4, Knowledge Orchestrator 0.4.6, Local AI Lab 0.1.3 (escritorio 0.1.4), Trading AI 1.3.2, Gestión Tareas IA 1.49.2 y ChatyGPT 0.4.9. El runner que publica el token es Agora 0.2.15.
+Tests: `tests/integration/test_conexion_credenciales.py` (3). Recorrido real del 19-oct, 12/12: Core arrancado con HTTPS en la red, HTTP no alcanzable desde la red, HTTPS rechazado sin la CA de Agora, runner publicando por HTTPS, otra app no puede cambiar el token (403), y las seis apps en Python empezando con un token caducado: el Broker real del PC IA responde 403, la app pide el token a Core y el Broker la acepta.
+
 ## Cambios 0.3.1: parar apps y arreglos del monitor (2026-10-19)
 - **Botón «Parar» por app** en «Aplicaciones» (`POST /api/v1/apps/{id}/stop`). Cierra con `taskkill /T` los procesos cuya línea de comandos contiene alguna marca `match` de la app (con sus hijos: la consola del `.bat`, el python…). Nunca toca el proceso de Core. Si otra app en marcha la necesita (`requires`), la página avisa de cuál y pide «Parar igualmente» (`?force=true`; sin él, 409). Sólo el token director (o, sin tokens, este equipo). Remota o sin `match` → 400.
 - **Conexiones zombi del monitor:** detrás de los middleware HTTP de Core no llega la desconexión del navegador, y una pestaña cerrada dejaba su conexión viva hasta 10 min, bloqueando recargar o parar Core. Ahora cada conexión dura 30 s (`AI_OS_MONITOR_MAX_S`) y la página reconecta sola desde el último paso, sin avisar.
 - **Consolas vacías:** al lanzar un `.bat`/`.cmd` con `start`, Windows usa `cmd /K` y la consola se quedaba abierta al acabar. Se lanzan con `cmd /c`.
 - Las apps del catálogo toman de él su nombre e icono en la constelación (antes, si se veían antes que el catálogo, salían como «sin registrar»). La hora del relato lleva siempre dos cifras.
 - `Arrancar AI OS Core.bat`: arranca Core y abre el monitor (lo mismo que `run.bat app`).
+- `Abrir Core a la red.bat` (pide administrador): crea los tokens que falten (director, `agora`, `gestion_tareas`) como variables de entorno del usuario, pone `AI_OS_HOST=0.0.0.0`, abre el puerto 8000 solo a la red local y genera `dist\Conectar runner a Core.bat`, que en el PC IA actualiza el runner con `-CoreUrl`/`-CoreToken` y vuelve a registrar su tarea. Con `-Deshacer` quita `AI_OS_HOST` y la regla del firewall; con `-Prueba` no toca el sistema.
 - Recorridos reales del 19-oct (Core de pruebas con token por app y Broker real): Athena 9/9, Model_Drift 12/12, KO 7/7, Local AI Lab 7/7, Trading AI 6/6, Agora 9/9, Gestión Tareas IA 11/11, ChatyGPT 3/3 y el recorrido completo ChatyGPT → Athena → Core → Broker → Athena → ChatyGPT (`cargo test --lib real_chatygpt_athena -- --ignored`).
 
 ## Cambios 0.3.0: monitor visual (2026-10-18)

@@ -10,7 +10,7 @@
 /* Sala de control, sólo en oscuro (va sobre la nebulosa): constelación a la izquierda, relato a la derecha, secuencia en un panel al pulsar */
 :root{
   --bg:#0b0e13; --panel:rgba(20,25,33,.86); --panel-solid:#141921; --line:#2a3240; --fg:#e6e9ef; --muted:#8f99a8;
-  --core:#f2b33d; --req:#5aa2ff; --allow:#3fcf8e; --deny:#ff5d5d; --resp:#b28cff; --receipt:#c9b37e; --idle:#5d6878;
+  --core:#f2b33d; --req:#5aa2ff; --allow:#3fcf8e; --deny:#ff5d5d; --resp:#b28cff; --receipt:#c9b37e; --api:#45d4c8; --idle:#5d6878;
   --display:"Familjen Grotesk",system-ui,sans-serif; --body:"Atkinson Hyperlegible",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
   color-scheme:dark;
 }
@@ -75,7 +75,8 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:grid;gri
 .tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--core)}
 .pane{min-height:0;overflow:auto;display:grid;align-content:start}
 .pane-hint{margin:0;padding:10px 16px 4px;color:var(--muted);font-size:13px}
-#feed{list-style:none;margin:0;padding:4px 12px 16px;display:grid;gap:10px;align-content:start}
+#feed{list-style:none;margin:0;padding:4px 12px 16px;display:grid;gap:10px;align-content:start;grid-template-columns:minmax(0,1fr)}
+.flow .mono{overflow-wrap:anywhere}  /* las rutas de la API no ensanchan la tarjeta */
 #appList{list-style:none;margin:0;padding:6px 12px 16px;display:grid;gap:8px}
 .app{border:1px solid var(--line);border-radius:10px;background:var(--panel-solid);padding:10px 12px;display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:4px 12px;align-items:center}
 .app.flash{border-color:var(--core)}
@@ -133,7 +134,7 @@ td.mono{font-size:12px;overflow-wrap:anywhere}
 .login .bad{color:var(--deny);font-size:13px}
 
 .k-request{color:var(--req)} .k-decision{color:var(--core)} .k-allow{color:var(--allow)} .k-deny{color:var(--deny)}
-.k-response{color:var(--resp)} .k-receipt{color:var(--receipt)} .k-error{color:var(--deny)}
+.k-response{color:var(--resp)} .k-receipt{color:var(--receipt)} .k-error{color:var(--deny)} .k-api{color:var(--api)}
 @keyframes pulse{50%{opacity:.4}}
 @keyframes drift{from{transform:scale(1.04) translate(0,0)}to{transform:scale(1.12) translate(-2%,1.5%)}}
 @keyframes enter{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
@@ -166,6 +167,7 @@ td.mono{font-size:12px;overflow-wrap:anywhere}
       <span><i style="background:var(--deny)"></i>denegada / error</span>
       <span><i style="background:var(--resp)"></i>respuesta</span>
       <span><i style="background:var(--receipt)"></i>recibo</span>
+      <span><i style="background:var(--api)"></i>datos con Core</span>
     </div>
   </section>
   <aside>
@@ -215,12 +217,18 @@ const BROKERS = new Set(["ai_broker", "broker"]);
 const name = id => NAMES[id] || id;
 const $ = id => document.getElementById(id);
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
+const bytes = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`;
+const apiBad = s => s.kind === "api" && s.details?.status >= 400;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const hhmmss = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString("es-ES", {hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"}) + "." + String(d.getMilliseconds()).padStart(3, "0").slice(0, 2); };
 
 // ---------- token ----------
 let token = "";
 try { token = localStorage.getItem("aios.monitor.token") || ""; } catch {}
+// Core abre el monitor con su token tras '#token=' (no viaja a ningún servidor): se guarda y se quita de la barra
+{ const m = location.hash.match(/token=([^&]+)/);
+  if (m) { token = decodeURIComponent(m[1]); try { localStorage.setItem("aios.monitor.token", token); } catch {}
+           history.replaceState(null, "", location.pathname + location.search); } }
 const authHeaders = () => token ? {Authorization: "Bearer " + token} : {};
 async function api(path) {
   const r = await fetch(path, {headers: authHeaders()});
@@ -365,6 +373,9 @@ async function playStep(s) {
     await travel(s.target, s.source, "k-response", fast);
   } else if (s.kind === "error") {
     await travel(s.target, s.source, "k-error", fast);
+  } else if (s.kind === "api") {
+    await travel(s.source, "core", "k-api", fast * .8);
+    await travel("core", s.source, apiBad(s) ? "k-error" : "k-api", fast * .6);
   }
 }
 
@@ -374,12 +385,13 @@ const TERMINAL_OK = new Set(["succeeded"]), TERMINAL_BAD = new Set(["failed_term
 
 function flowState(f) {
   if (f.steps.some(s => s.kind === "decision" && (s.details?.authorization !== "ALLOW" || s.details?.executable === false))) return ["deny", "denegada"];
-  if (f.steps.some(s => s.kind === "error" || (s.kind === "receipt" && TERMINAL_BAD.has(s.details?.status)))) return ["error", "con error"];
+  if (f.steps.some(s => s.kind === "error" || apiBad(s) || (s.kind === "receipt" && TERMINAL_BAD.has(s.details?.status)))) return ["error", "con error"];
   const origin = f.steps.find(s => s.kind === "request")?.source;
   // Con petición, acaba cuando la respuesta vuelve a quien la hizo; sin ella, con un recibo bueno
   if (origin) return f.steps.some(s => s.kind === "response" && s.source === origin) ? ["done", "completada"] : ["running", "en curso"];
   if (f.steps.some(s => s.kind === "receipt" && TERMINAL_OK.has(s.details?.status))) return ["done", "completada"];
   if (f.steps.every(s => s.kind === "decision")) return ["check", "solo consulta"];
+  if (f.steps.every(s => s.kind === "api")) return ["done", "completada"];
   return ["running", "en curso"];
 }
 function sentence(s) {
@@ -394,6 +406,10 @@ function sentence(s) {
       return `${S} pregunta a Core si puede usar ${esc(name(d.destination === "broker" ? brokerId : d.destination || "?"))}: <span class="${ok ? "k-allow" : "k-deny"}">${ok ? "autorizado" : esc(d.authorization || "denegado")}</span>${d.data_classification ? ` (dato ${esc(d.data_classification)})` : ""}`;
     }
     case "receipt": return `${S} entrega a Core el recibo: ${esc(d.status || s.summary)}`;
+    case "api": {
+      const moved = [d.bytes_in ? `envía ${bytes(d.bytes_in)}` : "", d.bytes_out ? `recibe ${bytes(d.bytes_out)}` : ""].filter(Boolean).join(", ");
+      return `${S} llama a la API de Core: <span class="mono">${esc(d.method)} ${esc(d.path)}</span> → <span class="${apiBad(s) ? "k-error" : "k-api"}">${esc(d.status)}</span>${moved ? ` (${moved})` : ""}`;
+    }
   }
   return esc(s.summary);
 }
@@ -456,6 +472,7 @@ function openDetail(flowId) {
     fact("Clasificación del dato", dec.map(s => esc(s.details.data_classification || "no declarada")).join(", ") || "—"),
     fact("Modelo", [...new Set(resp.map(s => s.details?.model).filter(Boolean))].map(esc).join(", ") || "—"),
     fact("Tiempo total", isNaN(t1 - t0) ? "—" : `${((t1 - t0) / 1000).toFixed(2)} s`),
+    fact("Datos movidos", (() => { const i = f.steps.reduce((t, s) => t + (s.details?.bytes_in || 0), 0), o = f.steps.reduce((t, s) => t + (s.details?.bytes_out || 0), 0); return i || o ? `${bytes(i)} enviados · ${bytes(o)} recibidos` : "—"; })()),
     fact("Recibo", rec.length ? rec.map(s => `${esc(s.details.status)} · ${esc(s.details.receiver_service)}`).join("<br>") : "sin recibo"),
   ].join("");
 
@@ -475,6 +492,7 @@ function openDetail(flowId) {
     let from = s.source, to = s.target, cls = "k-" + s.kind, label = s.summary || s.kind;
     if (s.kind === "decision") { to = "core"; const ok = s.details.authorization === "ALLOW" && s.details.executable !== false; cls = ok ? "k-allow" : "k-deny"; label = `${s.details.authorization} · ${s.details.data_classification || "sin clasificar"}`; }
     if (s.kind === "receipt") { to = "core"; label = "recibo · " + (s.details.status || ""); }
+    if (s.kind === "api") { cls = apiBad(s) ? "k-error" : "k-api"; label = `${s.details.method} ${s.details.path} · ${s.details.status}`; }
     if (s.kind === "response" || s.kind === "error") { [from, to] = [s.target, s.source]; label = s.kind === "error" ? "error · " + (s.summary || "") : [s.details?.model, s.details?.latency_ms != null ? (s.details.latency_ms / 1000).toFixed(1) + " s" : ""].filter(Boolean).join(" · ") || "respuesta"; }
     const g = el("g", {class: cls}, svg);
     if (from === to) el("path", {d: `M${X(from)} ${y} h40 v14 h-36`, fill: "none", stroke: "currentColor", "stroke-width": 2, "marker-end": "url(#arr)"}, g);

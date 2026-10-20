@@ -127,6 +127,28 @@ class TestFlowsMonitor(unittest.TestCase):
         finally:
             del os.environ["AI_OS_API_TOKENS"]
 
+    def test_api_calls_of_an_app_are_recorded_as_steps(self):
+        app_id, flow = _uid("app"), _uid("f")
+        who = {"X-Principal-Id": app_id}
+        self.client.get("/api/v1/policies", headers={**who, "X-Flow-Id": flow})
+        steps = self.client.get(f"/api/v1/flows/{flow}").json()["steps"]
+        self.assertEqual([(s["kind"], s["source"], s["target"]) for s in steps], [("api", app_id, "core")])
+        self.assertEqual({k: steps[0]["details"][k] for k in ("method", "path", "status")},
+                         {"method": "GET", "path": "/api/v1/policies", "status": 200})
+        self.assertGreater(steps[0]["details"]["bytes_out"], 0)
+        # Sin X-Flow-Id: el flujo del día de esa app; un error también se anota
+        self.client.get("/api/v1/certifications/m/c/v", headers=who)
+        daily = [f for f in {e["flow_id"] for e in self.client.get("/api/v1/flows/events").json()} if f.startswith(f"api_{app_id}_")]
+        self.assertEqual(len(daily), 1)
+        self.assertEqual(self.client.get(f"/api/v1/flows/{daily[0]}").json()["steps"][0]["details"]["status"], 404)
+        # Lo que ya tiene su propio paso, o no dice qué app es, no se duplica
+        before = self.client.get("/api/v1/flows/events", params={"limit": 1}).json()[-1]["id"]
+        self._hop(_uid("f"), src=app_id)
+        self.client.get("/api/v1/flows/events", headers=who)
+        self.client.get("/api/v1/policies")
+        after = self.client.get("/api/v1/flows/events", params={"after": before}).json()
+        self.assertEqual([s["kind"] for s in after], ["request"])
+
     def test_stream_delivers_new_steps(self):
         os.environ["AI_OS_MONITOR_POLL_S"] = "0.05"
         os.environ["AI_OS_MONITOR_MAX_S"] = "2"  # el cliente de pruebas no avisa al desconectar: que acabe solo

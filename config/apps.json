@@ -1,11 +1,11 @@
 {
-  "_comentario": "Catálogo del lanzador de AI OS Core (/monitor). Por app: cómo se arranca (start, cwd), cómo se sabe si está viva (health = URL que contesta, o match = trozo de la línea de comandos del proceso; match también es lo que se cierra con «Parar»), de qué depende (requires bloquea el arranque; uses sólo avisa) y qué variables recibe al arrancar desde Core ({core_url} y {token} = el token de esa app en AI_OS_API_TOKENS). Para una app nueva basta con añadir su entrada aquí.",
+  "_comentario": "Catálogo del lanzador de AI OS Core (/monitor). Por app: cómo se arranca (start, cwd), cómo se sabe si está viva (health = URL que contesta, o match = trozo de la línea de comandos del proceso; match también es lo que se cierra con «Parar»), de qué depende (requires bloquea el arranque; uses sólo avisa) y qué variables recibe al arrancar desde Core ({core_url} y {token} = el token de esa app). Las apps arrancadas por su cuenta toman lo mismo de %LOCALAPPDATA%/AIOSCore/conexion/<app>.json, que Core escribe al arrancar. Para una app nueva basta con añadir su entrada aquí y su principal en conexion.PRINCIPALS.",
   "apps": [
     {
       "id": "ai_broker",
       "name": "AI Broker",
       "kind": "remote",
-      "health": "http://192.168.1.52:8765/health",
+      "health": "https://192.168.1.52:8765/health",
       "note": "Vive en el PC IA: se arranca allí."
     },
     {
@@ -54,7 +54,7 @@
       "uses": [
         "ai_broker"
       ],
-      "note": "La conexión con Core se configura dentro de la app (Conexiones › AI OS Core)."
+      "note": "Toma sola la URL y el token de Core (carpeta de conexión) y el token del Broker se lo da Core."
     },
     {
       "id": "athena",
@@ -79,7 +79,8 @@
       "id": "chatygpt",
       "name": "ChatyGPT",
       "match": [
-        "chatygpt.exe"
+        "chatygpt.exe",
+        "Arrancar ChatyGPT.bat"
       ],
       "start": [
         "D:\\Desarrollo\\Proyectos TFM\\ChatyGPT\\Arrancar ChatyGPT.bat"
@@ -98,7 +99,8 @@
       "name": "Knowledge Orchestrator",
       "match": [
         "knowledge_orchestrator.app",
-        "Knowledge-Orchestrator.exe"
+        "Knowledge-Orchestrator.exe",
+        "start_orchestrator.bat"
       ],
       "start": [
         "D:\\Desarrollo\\Proyectos TFM\\Knowledge_Orchestrator\\start_orchestrator.bat"

@@ -15,8 +15,9 @@ from .api.errors import register_exception_handlers, format_error_response
 from .api.dependencies import get_idempotency_repo, TokenGrant
 from .domain.security import ClassificationLevel
 from .infrastructure.db.repositories.idempotency_repo import IdempotencyConflictError, IdempotencyInProgressError
-from .api.routes import health, goals, registry, events, policies, approvals, restore, budget, certifications, context, planner, resources, flows, launcher
-from . import __version__
+from .api.routes import health, goals, registry, events, policies, approvals, restore, budget, certifications, context, planner, resources, flows, launcher, credentials
+from . import __version__, conexion
+from .config import settings
 
 
 # Rutas sin token: sondas de vida y documentación (no exponen datos).
@@ -49,6 +50,12 @@ def _load_tokens() -> dict:
                 scopes=frozenset(s.strip() for s in scopes.split(",") if s.strip()) if scopes.strip() else None,
                 clearance=clearance
             )
+    if conexion.auto_enabled():
+        # Las apps que no tengan token fijado a mano reciben uno generado (ver conexion.py)
+        fixed = {(g.principal or conexion.DIRECTOR): t for t, g in tokens.items()}
+        for principal, token in conexion.provision(fixed, settings.port).items():
+            if token not in tokens:
+                tokens[token] = TokenGrant(principal=None if principal == conexion.DIRECTOR else principal)
     return tokens
 
 
@@ -148,6 +155,10 @@ def create_app() -> FastAPI:
         idemp_repo.release(namespaced_key)
         return response
 
+    # Monitor: cada llamada de una app a Core es un paso. Va entre ambos: ve ya la app del token
+    # y anota también las respuestas que la idempotencia sirve de su caché.
+    app.middleware("http")(flows.record_api_call)
+
     # Autenticación opcional por token (registrada después: Starlette la ejecuta antes que la
     # idempotencia, así una petición sin credencial no reserva claves). Sin AI_OS_API_TOKEN ni
     # AI_OS_API_TOKENS la API queda abierta como en 0.2.0, pensada sólo para 127.0.0.1.
@@ -212,6 +223,7 @@ def create_app() -> FastAPI:
     app.include_router(flows.router)
     app.include_router(flows.page_router)
     app.include_router(launcher.router)
+    app.include_router(credentials.router)
 
     return app
 
