@@ -86,6 +86,35 @@ class FlowsRepository:
         finally:
             conn.close()
 
+    def broker_principals(self) -> List[str]:
+        """Apps que mandan trabajo al Broker: las que tienen una política `<app>:broker`."""
+        conn = self.db_manager.get_connection()
+        try:
+            rows = conn.execute("SELECT DISTINCT scope FROM policies WHERE scope LIKE '%:broker';").fetchall()
+            return sorted({r["scope"].split(":", 1)[0] for r in rows})
+        finally:
+            conn.close()
+
+    def priorities(self) -> Dict[str, int]:
+        """Prioridad en la cola del Broker que el director ha fijado a cada app."""
+        conn = self.db_manager.get_connection()
+        try:
+            return {r["app"]: r["priority"] for r in conn.execute("SELECT app, priority FROM app_priorities;")}
+        finally:
+            conn.close()
+
+    def set_priority(self, app: str, priority: Optional[int]) -> None:
+        """`None` la borra: la app deja de mandarla y el Broker usa su 100 por defecto."""
+        with self.db_manager.transaction() as conn:
+            if priority is None:
+                conn.execute("DELETE FROM app_priorities WHERE app = ?;", (app,))
+            else:
+                conn.execute(
+                    "INSERT INTO app_priorities (app, priority, updated_at) VALUES (?, ?, ?) "
+                    "ON CONFLICT(app) DO UPDATE SET priority = excluded.priority, updated_at = excluded.updated_at;",
+                    (app, priority, utc_now_iso()),
+                )
+
     def policy_principals(self) -> List[str]:
         """Apps gobernadas por Core: el prefijo de los ámbitos `<app>:<destino>` de sus políticas."""
         conn = self.db_manager.get_connection()

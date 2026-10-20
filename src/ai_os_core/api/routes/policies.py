@@ -88,6 +88,9 @@ def evaluate_policies(
         resource_id=req.resource_id
     )
     result = decision.to_dict()
+    if req.scope.endswith(":broker"):
+        # La app manda esto como `priority` al Broker; None = no mandarla (100 por defecto)
+        result["broker_priority"] = flows.priorities().get(req.scope.split(":", 1)[0])
     # Monitor: la decisión entra en el flujo de la petición (context.flow_id) o abre uno propio
     asker = req.principal_id if req.principal_id != "system" else req.scope.split(":", 1)[0]
     record_safely(flows, flow_id=flow_id_from(req.context, result["trace_id"] or f"flow_{uuid.uuid4().hex[:12]}"), kind="decision",
@@ -98,6 +101,7 @@ def evaluate_policies(
                            "data_classification": req.context.get("data_classification"),
                            "matched_policies": result["matched_policy_refs"],
                            "unknown_inputs": result["unknown_inputs"],
+                           "broker_priority": result.get("broker_priority"),
                            "destination": req.scope.split(":", 1)[1] if ":" in req.scope else None})
     return result
 

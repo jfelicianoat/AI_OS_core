@@ -90,6 +90,18 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:grid;gri
 .app .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 button.danger{border-color:var(--deny);color:var(--deny)}
 .app button:disabled{opacity:.45;cursor:not-allowed}
+/* Turno en la cola del Broker: tres posiciones, la marcada se ilumina con su color */
+.prio{grid-column:2 / 4;display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:4px 0 0;padding:0;border:0;min-width:0}
+.prio legend{float:left;font-size:12px;color:var(--muted);padding:0;margin-right:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg label{position:relative;font:600 12px var(--body);padding:4px 11px;cursor:pointer;color:var(--muted);white-space:nowrap}
+.seg label + label{border-left:1px solid var(--line)}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg label:has(input:focus-visible){outline:2px solid var(--core);outline-offset:-2px}
+.seg label:hover{color:var(--fg)}
+.seg label:has(input:checked){color:#0b0e13;background:var(--c)}
+.seg label:has(input:disabled){cursor:progress;opacity:.6}
+.prio small{font-size:12px;color:var(--muted)}
 .node.down{opacity:.4}
 .flow{border:1px solid var(--line);border-radius:10px;background:var(--panel-solid);padding:10px 12px;display:grid;gap:6px;cursor:pointer;text-align:left;width:100%;animation:in .35s ease-out}
 .flow:hover{border-color:var(--core)}
@@ -180,7 +192,7 @@ td.mono{font-size:12px;overflow-wrap:anywhere}
       <ul id="feed" aria-live="polite"></ul>
     </div>
     <div id="paneApps" role="tabpanel" aria-labelledby="tabApps" class="pane" hidden>
-      <p class="pane-hint">Arranca y para desde aquí el resto del ecosistema. Una app que depende de otra no se puede arrancar hasta que esa otra esté en marcha.</p>
+      <p class="pane-hint">Arranca y para desde aquí el resto del ecosistema. Una app que depende de otra no se puede arrancar hasta que esa otra esté en marcha. El turno decide quién pasa antes cuando varias apps esperan al Broker, que atiende de una en una.</p>
       <ul id="appList"></ul>
     </div>
   </aside>
@@ -403,7 +415,7 @@ function sentence(s) {
     case "error": return `${S} no obtiene respuesta de ${T}${extra}`;
     case "decision": {
       const ok = d.authorization === "ALLOW" && d.executable !== false;
-      return `${S} pregunta a Core si puede usar ${esc(name(d.destination === "broker" ? brokerId : d.destination || "?"))}: <span class="${ok ? "k-allow" : "k-deny"}">${ok ? "autorizado" : esc(d.authorization || "denegado")}</span>${d.data_classification ? ` (dato ${esc(d.data_classification)})` : ""}`;
+      return `${S} pregunta a Core si puede usar ${esc(name(d.destination === "broker" ? brokerId : d.destination || "?"))}: <span class="${ok ? "k-allow" : "k-deny"}">${ok ? "autorizado" : esc(d.authorization || "denegado")}</span>${d.data_classification ? ` (dato ${esc(d.data_classification)})` : ""}${d.broker_priority != null ? ` · turno ${esc(prioLabel(d.broker_priority))}` : ""}`;
     }
     case "receipt": return `${S} entrega a Core el recibo: ${esc(d.status || s.summary)}`;
     case "api": {
@@ -514,6 +526,45 @@ const starting = new Map(), stopping = new Map(), launchError = new Map();   // 
 let confirming = null;   // app cuya parada espera confirmación (otras dependen de ella)
 const STOP_LIMIT_MS = 30000;
 const STARTUP_LIMIT_MS = 90000;
+// Turno en la cola del Broker (Client_API §5.1.1): menor número = pasa antes. Sin fijar = 100.
+const PRIORITIES = [
+  {value: 10, label: "Urgente", color: "var(--deny)", hint: "pasa por delante de todo lo demás"},
+  {value: 100, label: "Normal", color: "var(--allow)", hint: "en orden de llegada"},
+  {value: 500, label: "De fondo", color: "var(--idle)", hint: "espera a que no haya nada más"},
+];
+const savingPriority = new Set();
+function prioLabel(v) { const p = PRIORITIES.find(p => p.value === v); return p ? `${p.label.toLowerCase()} (${v})` : String(v); }
+
+function priorityControl(a) {
+  const current = a.priority ?? 100, preset = PRIORITIES.find(p => p.value === current);
+  const box = document.createElement("fieldset"); box.className = "prio";
+  box.innerHTML = `<legend>Turno en el Broker</legend>`;
+  const seg = document.createElement("span"); seg.className = "seg";
+  for (const p of PRIORITIES) {
+    const l = document.createElement("label"); l.style.setProperty("--c", p.color); l.title = `${p.value}: ${p.hint}`;
+    const r = document.createElement("input"); r.type = "radio"; r.name = `prio-${a.id}`; r.value = p.value;
+    r.checked = p === preset; r.disabled = savingPriority.has(a.id);
+    r.addEventListener("change", () => setPriority(a.id, p.value));
+    l.append(r, p.label); seg.append(l);
+  }
+  box.append(seg);
+  const note = document.createElement("small");
+  note.textContent = savingPriority.has(a.id) ? "guardando…"
+    : !preset ? `personalizado: ${current}` : a.priority == null ? `${preset.hint} · por defecto` : preset.hint;
+  box.append(note);
+  return box;
+}
+async function setPriority(id, value) {
+  launchError.delete(id); savingPriority.add(id); renderLauncher();
+  try {
+    const r = await fetch(`/api/v1/apps/${encodeURIComponent(id)}/priority`,
+                          {method: "PUT", headers: {...authHeaders(), "Content-Type": "application/json"}, body: JSON.stringify({priority: value})});
+    if (r.status === 401) { savingPriority.delete(id); return askToken(true); }
+    if (r.ok) { const a = launcher.find(a => a.id === id); if (a) a.priority = value; }
+    else { const e = await r.json().catch(() => ({})); launchError.set(id, e.error?.message || e.detail || `Core contestó ${r.status}.`); }
+  } catch { launchError.set(id, "Core no contesta."); }
+  savingPriority.delete(id); renderLauncher();
+}
 
 function selectTab(which) {
   const onApps = which === "apps";
@@ -582,6 +633,7 @@ function renderLauncher() {
       }
       li.append(acts);
     } else li.append(document.createElement("span"));
+    if (a.broker_client) li.append(priorityControl(a));
     li.insertAdjacentHTML("beforeend", `<div class="why">${why.join(" ") || "&nbsp;"}</div>`);
     list.append(li);
   }

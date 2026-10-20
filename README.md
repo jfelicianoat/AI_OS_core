@@ -1,4 +1,4 @@
-# AI OS Core — Control Plane (M0) · v0.4.2
+# AI OS Core — Control Plane (M0) · v0.4.3
 
 Control plane determinista, federado y local-first para la plataforma AI OS.
 
@@ -59,6 +59,12 @@ Antes de 0.2.2 ninguna otra app llamaba a Core; estos recorridos la simulaban de
 - `scripts/e2e_ecosistema.py` (33): certificaciones a partir de los resultados reales de Model_Drift, elección del modelo de Athena según esas certificaciones (`muse-glimmer:latest` autorizado; `qwen3.8:27b` y `lfm2:24b` descartados), run real de Athena sobre el Broker gobernado por Core, y proyección de las 76 tareas de una copia de Gestión Tareas IA con su estado canónico idéntico al origen.
 - `scripts/e2e_resto_apps.py <core> <carpeta_copias>` (18): copias de las bases de ChatyGPT, Knowledge Orchestrator, Trading AI desktop y Local AI Lab. Core recomienda la acción correcta tras una caída para las 4 293 tareas al Broker de ChatyGPT y las 235 de KO (incluidas las que siguen en cola o en curso), y proyecta sus conversaciones, flujos, 11 backtests y 10 registros de experimentos con el estado canónico idéntico al origen. Verde también con Core arrancado sólo con tokens por app.
 - LARM no entra en ningún recorrido: hoy sólo es especificación y prompts, no hay programa que gobernar.
+
+## Cambios 0.4.3: turno de cada app en la cola del Broker (2026-10-20)
+`Client_API.md` §5.1.1: el Broker atiende de una en una y `priority` (0–1000, **menor = antes**) decide quién va después.
+- En el monitor, pestaña **Aplicaciones**, cada app que manda trabajo al Broker (tiene política `<app>:broker`) lleva un selector **Turno en el Broker**: Urgente (10) · Normal (100) · De fondo (500). Sólo el director lo cambia (`PUT /api/v1/apps/{id}/priority`, `{"priority": 0–1000 | null}`; `null` = volver al de por defecto). Se guarda en `app_priorities` (migración 004).
+- `POST /api/v1/policies/evaluate` de un ámbito `<app>:broker` devuelve `broker_priority` (`null` si no se fijó). Las apps ya evaluaban antes de cada envío, así que el cambio vale desde el siguiente envío, sin reiniciar nada. El relato del monitor muestra el turno con la decisión.
+- Cómo lo usa cada app: GTI, Model_Drift, Athena, Local AI Lab y Trading AI mandan ese turno tal cual. Agora, KO y ChatyGPT ya tenían prioridad propia por tarjeta o por petición: el turno de Core es la base y lo suyo la ajusta respecto a la normal (urgente = una décima parte; una pregunta «alta» de ChatyGPT, 25, la cuarta parte). Sin turno fijado, cada app envía lo mismo que antes, **salvo Agora**, que mandaba su escala al revés (una tarjeta `urgent` salía con 1000 y pasaba la última); ahora va con 10.
 
 ## Cambios 0.4.2: el monitor ve todo el tráfico con la API de Core (2026-10-20)
 Hasta ahora el monitor sólo veía las consultas de política, los recibos y los saltos que cada app

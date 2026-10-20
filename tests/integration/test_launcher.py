@@ -111,6 +111,33 @@ class TestLauncher(unittest.TestCase):
         self.assertEqual(r.status_code, 400)
         self.assertEqual(self.spawned, [])
 
+    def test_the_director_sets_the_broker_turn_and_the_app_gets_it_when_it_asks_core(self):
+        director = {"Authorization": "Bearer tok-director"}
+        self.client.post("/api/v1/policies", headers=director, json={
+            "policy_id": "p_prio_athena", "policy_key": "prio_athena", "scope": "athena:broker",
+            "decision_if_matched": "ALLOW", "unconditional": True})
+        self.addCleanup(lambda: self.client.put("/api/v1/apps/athena/priority", headers=director, json={"priority": None}))
+        apps = self._apps()
+        self.assertTrue(apps["athena"]["broker_client"])
+        self.assertFalse(apps["agora"]["broker_client"])  # sin política `agora:broker` no tiene turno
+        self.assertIsNone(apps["athena"]["priority"])
+
+        def asked():
+            return self.client.post("/api/v1/policies/evaluate", headers={"Authorization": "Bearer tok-athena"},
+                                    json={"scope": "athena:broker", "principal_id": "athena", "context": {}}).json()
+        self.assertIsNone(asked()["broker_priority"])  # sin fijar: la app no la manda
+        # Una app no se pone turno a sí misma; fuera de 0–1000 no vale
+        self.assertEqual(self.client.put("/api/v1/apps/athena/priority", headers={"Authorization": "Bearer tok-athena"},
+                                         json={"priority": 0}).status_code, 403)
+        self.assertEqual(self.client.put("/api/v1/apps/athena/priority", headers=director, json={"priority": 1001}).status_code, 422)
+        self.assertEqual(self.client.put("/api/v1/apps/agora/priority", headers=director, json={"priority": 10}).status_code, 400)
+        r = self.client.put("/api/v1/apps/athena/priority", headers=director, json={"priority": 10})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(self._apps()["athena"]["priority"], 10)
+        self.assertEqual(asked()["broker_priority"], 10)
+        self.client.put("/api/v1/apps/athena/priority", headers=director, json={"priority": None})
+        self.assertIsNone(asked()["broker_priority"])
+
     def test_a_running_app_is_not_started_twice(self):
         with mock.patch.object(launcher, "_command_lines", return_value=["c:\\x\\athena-que-no-existe --ui"]):
             r = self.client.post("/api/v1/apps/athena/start", headers={"Authorization": "Bearer tok-director"})

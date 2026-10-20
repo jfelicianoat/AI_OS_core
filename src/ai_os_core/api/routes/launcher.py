@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
 
 from ai_os_core.api.dependencies import get_flows_repo
 from ai_os_core.api.routes.flows import record_safely
@@ -144,9 +145,41 @@ def _spawn(command: List[str], cwd: Optional[str], env: Dict[str, str]) -> None:
                      creationflags=subprocess.CREATE_NO_WINDOW)
 
 
+def _principal_of(app: Dict[str, Any]) -> str:
+    return app.get("principal", app["id"])
+
+
 @router.get("")
-async def list_apps():
-    return await run_in_threadpool(statuses)
+async def list_apps(flows: FlowsRepository = Depends(get_flows_repo)):
+    result = await run_in_threadpool(statuses)
+    priorities, senders = flows.priorities(), set(flows.broker_principals())
+    principals = {a["id"]: _principal_of(a) for a in load_catalog()}
+    for app in result["apps"]:
+        principal = principals.get(app["id"], app["id"])
+        # Sólo tiene prioridad quien manda trabajo al Broker; None = sin fijar (100 del Broker)
+        app["broker_client"] = principal in senders
+        app["priority"] = priorities.get(principal)
+    return result
+
+
+class PriorityRequest(BaseModel):
+    priority: Optional[int] = Field(None, ge=0, le=1000)
+
+
+@router.put("/{app_id}/priority")
+def set_app_priority(app_id: str, body: PriorityRequest, request: Request,
+                     flows: FlowsRepository = Depends(get_flows_repo)):
+    """El director decide quién pasa antes en la cola del Broker (Client_API §5.1.1)."""
+    _director_only(request)
+    app = _catalog_entry(app_id)
+    principal = _principal_of(app)
+    if principal not in flows.broker_principals():
+        raise HTTPException(status_code=400, detail=f"{app.get('name', app_id)} no manda trabajo al AI Broker.")
+    flows.set_priority(principal, body.priority)
+    record_safely(flows, flow_id=f"prioridad_{principal}_{int(time.time())}", kind="request", source="core",
+                  target=principal, summary=f"prioridad {body.priority if body.priority is not None else 'por defecto'}",
+                  details={"priority": body.priority, "set_by": "monitor"})
+    return {"id": app_id, "principal": principal, "priority": body.priority}
 
 
 def _director_only(request: Request) -> None:
