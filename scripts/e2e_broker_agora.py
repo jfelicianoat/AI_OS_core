@@ -3,17 +3,18 @@
 Uso: python e2e_broker_agora.py <core_url> <broker_token> <agora_token>
 Agora sólo se lee (no se crean tarjetas: eso encargaría trabajo real al PC IA).
 """
-import hashlib, json, sys, time, uuid
+import hashlib, json, os, sys, time, uuid
 import httpx
 
 CORE, BROKER_TOKEN, AGORA_TOKEN = sys.argv[1], sys.argv[2], sys.argv[3]
-BROKER = "http://192.168.1.52:8765"
+# Desde el 20-oct el Broker solo escucha en HTTPS con su CA propia («AI Broker CA»).
+BROKER = os.environ.get("AI_BROKER_URL", "https://192.168.1.52:8765")
+BROKER_CA = os.environ.get("AI_BROKER_CA_CERT", "C:/Agora/pki-broker/ca.crt")
 AGORA = "https://127.0.0.1:8741"
 run = uuid.uuid4().hex[:8]
-import os
 core = httpx.Client(base_url=CORE, timeout=30,  # AI_OS_API_TOKEN opcional: si Core lo exige, se manda el mismo Bearer
                     headers={"Authorization": f"Bearer {os.environ['AI_OS_API_TOKEN']}"} if os.environ.get("AI_OS_API_TOKEN") else {})
-broker = httpx.Client(base_url=BROKER, timeout=30, headers={"X-Admin-Token": BROKER_TOKEN})
+broker = httpx.Client(base_url=BROKER, timeout=30, verify=BROKER_CA, headers={"X-Admin-Token": BROKER_TOKEN})
 agora = httpx.Client(base_url=AGORA, timeout=30, verify="C:/Agora/pki/ca.crt",
                      headers={"Authorization": f"Bearer {AGORA_TOKEN}"})
 ok_count = 0
