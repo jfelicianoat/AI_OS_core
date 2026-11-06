@@ -44,7 +44,7 @@ class TestConexionAutomatica(unittest.TestCase):
         with TestClient(create_app(), raise_server_exceptions=False) as c:
             for p in ("director", *conexion.PRINCIPALS):
                 data = json.loads((self.folder / f"{p}.json").read_text(encoding="utf-8"))
-                self.assertEqual(data["core_url"], "http://127.0.0.1:8000")
+                self.assertEqual(data["core_url"], "http://127.0.0.1:8720")
                 self.assertGreaterEqual(len(data["token"]), 32)
             # Con tokens generados la API exige credencial, y el token fija quién llama
             self.assertEqual(c.get("/api/v1/goals").status_code, 401)

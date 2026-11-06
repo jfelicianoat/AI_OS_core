@@ -30,7 +30,7 @@ class Settings:
     # Entorno y servidor
     env: str = field(default_factory=lambda: os.getenv("AI_OS_ENV", "development"))
     host: str = field(default_factory=lambda: os.getenv("AI_OS_HOST", "127.0.0.1"))
-    port: int = field(default_factory=lambda: int(os.getenv("AI_OS_PORT", "8000")))
+    port: int = field(default_factory=lambda: int(os.getenv("AI_OS_PORT", "8720")))
 
     # Base de datos SQLite y durabilidad
     db_path: str = field(default_factory=lambda: os.getenv("AI_OS_DB_PATH", _get_default_db_path()))

@@ -168,6 +168,27 @@
         "TRADING_AI_CORE_URL": "{core_url}",
         "TRADING_AI_CORE_TOKEN": "{token}"
       }
+    },
+    {
+      "id": "gestion_favoritos",
+      "name": "Gestión Favoritos",
+      "health": "http://127.0.0.1:8790/api/healthz",
+      "match": [
+        "-m gestion_favoritos",
+        "Arrancar Favoritos.bat"
+      ],
+      "start": [
+        "D:\\Desarrollo\\Proyectos TFM\\Gestion favoritos\\Arrancar Favoritos.bat"
+      ],
+      "cwd": "D:\\Desarrollo\\Proyectos TFM\\Gestion favoritos",
+      "uses": [
+        "ai_broker"
+      ],
+      "env": {
+        "GESTION_FAVORITOS_CORE_URL": "{core_url}",
+        "GESTION_FAVORITOS_CORE_TOKEN": "{token}"
+      },
+      "note": "Interfaz web en http://127.0.0.1:8790/ (se abre sola al arrancar)."
     }
   ]
 }

@@ -1,4 +1,4 @@
-# AI OS Core — Control Plane (M0) · v0.4.3
+# AI OS Core — Control Plane (M0) · v0.4.4
 
 Control plane determinista, federado y local-first para la plataforma AI OS.
 
@@ -26,9 +26,9 @@ pytest -v
 
 ### Iniciar el servidor localmente:
 ```bash
-uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8000 --reload
+uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8720 --reload
 ```
-`run.bat app` arranca Core y abre el monitor en el navegador: `http://127.0.0.1:8000/monitor`.
+`run.bat app` arranca Core y abre el monitor en el navegador: `http://127.0.0.1:8720/monitor`.
 
 ### Base de datos
 Por defecto `%LOCALAPPDATA%\AIOSCore\data\ai_os_core.db`; se cambia con `AI_OS_DB_PATH`.
@@ -60,6 +60,12 @@ Antes de 0.2.2 ninguna otra app llamaba a Core; estos recorridos la simulaban de
 - `scripts/e2e_resto_apps.py <core> <carpeta_copias>` (18): copias de las bases de ChatyGPT, Knowledge Orchestrator, Trading AI desktop y Local AI Lab. Core recomienda la acción correcta tras una caída para las 4 293 tareas al Broker de ChatyGPT y las 235 de KO (incluidas las que siguen en cola o en curso), y proyecta sus conversaciones, flujos, 11 backtests y 10 registros de experimentos con el estado canónico idéntico al origen. Verde también con Core arrancado sólo con tokens por app.
 - LARM no entra en ningún recorrido: hoy sólo es especificación y prompts, no hay programa que gobernar.
 
+## Cambios 0.4.4: alta de Gestión Favoritos (2026-11-05)
+- Nuevo principal `gestion_favoritos` (Gestión Favoritos 0.2.1): Core le genera su token y su fichero de conexión, `sembrar_ecosistema.py` crea las políticas de `gestion_favoritos:broker`, y la app sale en el lanzador (`config/apps.json`, viva si contesta `http://127.0.0.1:8790/api/healthz`) y en la constelación con su icono (`monitor/iconos/gestion_favoritos.svg`, Magnific).
+- La app evalúa la política en `BrokerCliente.crear_tarea` antes de cada tarea al Broker (falla cerrado) y deja recibos `accepted` → terminal.
+- **Core pasa del puerto 8000 al 8720** (`AI_OS_PORT` lo sigue cambiando). ComfyUI Desktop coge el 8000 cuando encuentra ocupado el suyo (8188) y entonces Core no arrancaba, y las apps, que fallan cerrado, dejaban de mandar trabajo al Broker. Las apps toman el puerto nuevo de su fichero de conexión, que Core reescribe al arrancar; Gestión Tareas IA lo tenía guardado en sus ajustes y se cambió allí. El HTTPS de la red (8443) y el runner del PC IA no cambian.
+- Si el puerto de Core está ocupado, `serve` dice qué programa lo tiene y qué hacer, en vez de morir con el error de uvicorn (`tests/unit/test_serve_puerto.py`).
+
 ## Cambios 0.4.3: turno de cada app en la cola del Broker (2026-10-20)
 `Client_API.md` §5.1.1: el Broker atiende de una en una y `priority` (0–1000, **menor = antes**) decide quién va después.
 - En el monitor, pestaña **Aplicaciones**, cada app que manda trabajo al Broker (tiene política `<app>:broker`) lleva un selector **Turno en el Broker**: Urgente (10) · Normal (100) · De fondo (500). Sólo el director lo cambia (`PUT /api/v1/apps/{id}/priority`, `{"priority": 0–1000 | null}`; `null` = volver al de por defecto). Se guarda en `app_priorities` (migración 004).
@@ -87,7 +93,7 @@ certificaciones, enviar eventos, proyectar recursos, el planificador…) no se v
 Antes había que pegar en cada app su token de Core y el token del AI Broker, que además cambia cada vez que el Broker arranca. Ahora:
 - **Token de cada app con Core: lo genera Core.** Al arrancar, Core crea (una sola vez) un token para el director y para cada app de `conexion.PRINCIPALS` y lo deja, con su URL, en `%LOCALAPPDATA%\AIOSCore\conexion\<app>.json`. Las apps lo leen de ahí si no se lo pasa el lanzador. Un token fijado en `AI_OS_API_TOKEN(S)` manda sobre el generado. El token sigue siendo **uno por app** (fija quién llama, 403 si una app firma como otra): no hay un token común para todo. `AI_OS_AUTO_TOKENS=false` lo desactiva y `AI_OS_CONNECT_DIR` cambia la carpeta.
 - **Token del Broker: lo reparte Core.** El runner de Agora vive junto al Broker en el PC IA y lee del llavero el token que el Broker publica al arrancar. Se lo envía a Core (`PUT /api/v1/credentials/broker`; sólo el principal `agora` o el director, el resto 403) cuando cambia, y cada minuto por si Core se ha reiniciado: Core lo guarda **sólo en memoria**. Las apps lo piden (`GET /api/v1/credentials/broker`, 503 si aún no ha llegado). Si el Broker les responde 401/403, lo vuelven a pedir y repiten la petición una vez.
-- **HTTPS en la red.** `python -m ai_os_core.serve` (lo usa `run.bat`) sirve siempre `http://127.0.0.1:8000` para este equipo. Con `AI_OS_HOST` distinto de 127.0.0.1 abre además `https://<host>:8443` (`AI_OS_TLS_PORT`) con el certificado del tablero de Agora (`C:\Agora\pki\server.crt`/`.key`, o `AI_OS_TLS_CERT`/`AI_OS_TLS_KEY`), firmado por la CA en la que el runner ya confía. El 8000 ya no escucha en la red: por la red no viaja ningún token en claro. Sin certificado, Core se niega a abrirse a la red.
+- **HTTPS en la red.** `python -m ai_os_core.serve` (lo usa `run.bat`) sirve siempre `http://127.0.0.1:8720` para este equipo. Con `AI_OS_HOST` distinto de 127.0.0.1 abre además `https://<host>:8443` (`AI_OS_TLS_PORT`) con el certificado del tablero de Agora (`C:\Agora\pki\server.crt`/`.key`, o `AI_OS_TLS_CERT`/`AI_OS_TLS_KEY`), firmado por la CA en la que el runner ya confía. El 8000 ya no escucha en la red: por la red no viaja ningún token en claro. Sin certificado, Core se niega a abrirse a la red.
 - **Monitor sin pegar el token.** Core abre el monitor cuando ya contesta, con el token del director tras `#token=`: el navegador no lo envía a ningún servidor, la página lo guarda y lo borra de la barra de direcciones.
 - `Abrir Core a la red.bat` abre ahora el 8443 (rehace la regla del 8000) y genera el «Conectar runner a Core.bat» con la URL `https://`. Ya no hay que pegar el token de Gestión Tareas IA.
 
@@ -139,6 +145,7 @@ INDETERMINATE o Core caído → no se envía nada. Después deja recibos de oper
 | Knowledge Orchestrator 0.4.3 (`knowledge_orchestrator`) | `BrokerClient.create_task` | `KO_CORE_URL`, `KO_CORE_TOKEN` | 7/7 |
 | Local AI Lab 0.1.1 (`local_ai_lab`) | `BrokerTaskClient.invoke` | `LOCAL_AI_LAB_CORE_URL`, `LOCAL_AI_LAB_CORE_TOKEN` | 7/7 |
 | Trading AI 1.2.2 (`trading_ai`) | `BrokerAIClient.create_task` | `TRADING_AI_CORE_URL`, `TRADING_AI_CORE_TOKEN` | 6/6 |
+| Gestión Favoritos 0.2.1 (`gestion_favoritos`) | `BrokerCliente.crear_tarea` | `GESTION_FAVORITOS_CORE_URL`, `GESTION_FAVORITOS_CORE_TOKEN` (o su fichero de conexión) | ver 0.4.4 |
 | ChatyGPT 0.4.2 (`chatygpt`) | `BrokerClient::create_task` (Rust) | `CHATYGPT_CORE_URL`, `CHATYGPT_CORE_TOKEN` | `cargo test real_ai_os_core -- --ignored` 3/3 |
 
 Puesta en marcha: arrancar Core con `AI_OS_API_TOKEN` (director) y `AI_OS_API_TOKENS` con un token

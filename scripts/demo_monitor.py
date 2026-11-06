@@ -18,7 +18,7 @@ import time
 import urllib.request
 import uuid
 
-CORE = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://127.0.0.1:8000"
+CORE = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://127.0.0.1:8720"
 PAUSA = float(sys.argv[2]) if len(sys.argv) > 2 else 1.4
 TOKEN = os.environ.get("AI_OS_API_TOKEN")
 

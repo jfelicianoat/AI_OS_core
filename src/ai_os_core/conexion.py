@@ -19,7 +19,7 @@ DIRECTOR = "director"
 # Los principals del ecosistema (los de scripts/sembrar_ecosistema.py)
 PRINCIPALS = (
     "agora", "gestion_tareas", "athena", "chatygpt", "knowledge_orchestrator",
-    "local_ai_lab", "model_drift", "trading_ai",
+    "local_ai_lab", "model_drift", "trading_ai", "gestion_favoritos",
 )
 
 

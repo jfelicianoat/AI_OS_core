@@ -26,6 +26,7 @@ AMBITOS = {
     "local_ai_lab": "local_ai_lab:broker",
     "trading_ai": "trading_ai:broker",
     "chatygpt": "chatygpt:broker",
+    "gestion_favoritos": "gestion_favoritos:broker",
 }
 
 

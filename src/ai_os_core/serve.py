@@ -11,6 +11,8 @@ director, sin pedirlo.
 
 import asyncio
 import os
+import socket
+import subprocess
 import sys
 import threading
 import time
@@ -43,10 +45,42 @@ def _open_monitor(port: int) -> None:
     webbrowser.open(f"{url}/monitor" + (f"#token={token}" if token else ""))
 
 
+def _proceso_en(port: int) -> str:
+    """«nombre (PID n)» de quien escucha en el puerto, según netstat/tasklist de Windows."""
+    try:
+        lineas = subprocess.run(["netstat", "-ano", "-p", "TCP"], capture_output=True, text=True,
+                                timeout=10).stdout.splitlines()
+        pid = next(l.split()[-1] for l in lineas
+                   if "LISTENING" in l and l.split()[1].endswith(f":{port}"))
+        fila = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                              capture_output=True, text=True, timeout=10).stdout.strip()
+        return f"{fila.split(',')[0].strip(chr(34)) or 'proceso'} (PID {pid})"
+    except (OSError, StopIteration, IndexError, subprocess.SubprocessError):
+        return "otro programa"
+
+
+def puerto_ocupado(port: int) -> str | None:
+    """None si se puede escuchar en 127.0.0.1:port; si no, qué hacer, dicho para una persona."""
+    with socket.socket() as prueba:
+        try:
+            prueba.bind(("127.0.0.1", port))
+            return None
+        except OSError:
+            pass
+    return (f"El puerto {port} de Core ya lo usa {_proceso_en(port)}. Ciérralo y vuelve a arrancar Core, "
+            f"o arranca Core en otro con AI_OS_PORT (las apps toman el nuevo de su carpeta de conexión al "
+            f"arrancar). Si es ComfyUI Desktop: su puerto es el 8188 y solo cae en el {port} cuando, al "
+            "abrirse, encuentra el suyo ocupado; reinícialo después de arrancar Core.")
+
+
 def main() -> int:
     from .app import _load_tokens, app
 
     port = settings.port
+    motivo = puerto_ocupado(port)
+    if motivo:
+        print(motivo)
+        return 1
     configs = [uvicorn.Config(app, host="127.0.0.1", port=port)]
     if settings.host not in LOOPBACK:
         if not _load_tokens():

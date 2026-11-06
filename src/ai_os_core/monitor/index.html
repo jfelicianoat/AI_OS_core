@@ -224,7 +224,7 @@ const NS = "http://www.w3.org/2000/svg";
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const NAMES = {core:"AI OS Core", ai_broker:"AI Broker", broker:"AI Broker", chatygpt:"ChatyGPT", athena:"Athena", agora:"Agora",
   gestion_tareas:"Gestión Tareas IA", model_drift:"Model_Drift", knowledge_orchestrator:"Knowledge Orch.", local_ai_lab:"Local AI Lab",
-  trading_ai:"Trading AI"};
+  trading_ai:"Trading AI", gestion_favoritos:"Gestión Favoritos"};
 const BROKERS = new Set(["ai_broker", "broker"]);
 const name = id => NAMES[id] || id;
 const $ = id => document.getElementById(id);

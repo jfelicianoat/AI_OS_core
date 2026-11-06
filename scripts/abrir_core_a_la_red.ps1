@@ -8,7 +8,7 @@
        otro para `gestion_tareas`. Respeta los que ya existan y crea solo los que falten.
        Se guardan como variables de entorno de tu usuario (no en ficheros del proyecto).
     2. AI_OS_HOST=0.0.0.0: Core abre ademas HTTPS en el 8443 para la red, con el certificado del
-       tablero de Agora (C:\Agora\pki), firmado por la CA en la que el runner ya confia. El 8000
+       tablero de Agora (C:\Agora\pki), firmado por la CA en la que el runner ya confia. El 8720
        (HTTP) sigue solo para este equipo: por la red no viajan tokens en claro.
     3. Firewall: abre el puerto 8443 solo a la red local (pide permiso de administrador).
     4. Genera "Conectar runner a Core.bat": copialo al PC IA y haz doble clic.
