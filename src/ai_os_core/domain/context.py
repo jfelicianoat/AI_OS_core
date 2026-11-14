@@ -2,7 +2,7 @@
 Comentarios en español.
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from ai_os_core.domain.contracts import ResourceReference, utc_now_iso
 from ai_os_core.domain.security import ClassificationLevel

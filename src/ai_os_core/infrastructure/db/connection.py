@@ -4,7 +4,6 @@ Comentarios en español.
 """
 
 import sqlite3
-import os
 from pathlib import Path
 from typing import Generator
 from contextlib import contextmanager

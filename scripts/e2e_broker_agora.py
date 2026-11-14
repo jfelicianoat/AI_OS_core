@@ -3,7 +3,12 @@
 Uso: python e2e_broker_agora.py <core_url> <broker_token> <agora_token>
 Agora sólo se lee (no se crean tarjetas: eso encargaría trabajo real al PC IA).
 """
-import hashlib, json, os, sys, time, uuid
+import hashlib
+import json
+import os
+import sys
+import time
+import uuid
 import httpx
 
 CORE, BROKER_TOKEN, AGORA_TOKEN = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -35,7 +40,8 @@ def post(path, body, **kw):
 
 
 # 1. Core vivo y migrado
-h = core.get("/health").json(); rd = core.get("/ready").json()
+h = core.get("/health").json()
+rd = core.get("/ready").json()
 step("core /health y /ready", h["status"] == "healthy" and rd["status"] == "ready", f"v{h['version']} schema={rd['schema_version']}")
 
 # 2. Registro federado de los servicios reales

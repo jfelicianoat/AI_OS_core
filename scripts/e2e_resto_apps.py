@@ -14,7 +14,13 @@ Uso: python e2e_resto_apps.py <core_url> <carpeta_con_copias>
   La carpeta contiene chatygpt.db, ko.db, trading_ai.db y lab_state.db.
   Variable opcional AI_OS_API_TOKEN: si Core la tiene, se manda el mismo Bearer.
 """
-import collections, hashlib, json, os, sqlite3, sys, uuid
+import collections
+import hashlib
+import json
+import os
+import sqlite3
+import sys
+import uuid
 import httpx
 
 CORE, COPIES = sys.argv[1], sys.argv[2]

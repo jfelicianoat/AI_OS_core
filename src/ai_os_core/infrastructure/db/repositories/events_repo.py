@@ -6,7 +6,7 @@ import json
 import sqlite3
 from typing import Optional, List, Tuple
 from ai_os_core.infrastructure.db.connection import DatabaseManager
-from ai_os_core.domain.events import EventEnvelope, EventType, ReplayCursor, ReplayGap
+from ai_os_core.domain.events import EventEnvelope, EventType, ReplayGap
 from ai_os_core.domain.contracts import utc_now_iso
 from ai_os_core.domain.errors import ConflictError
 

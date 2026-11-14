@@ -36,3 +36,12 @@ ai_os_core = ["monitor/*.html", "monitor/*.jpg", "monitor/iconos/*.svg", "infras
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501"]

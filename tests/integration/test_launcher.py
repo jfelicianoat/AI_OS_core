@@ -148,6 +148,7 @@ class TestLauncher(unittest.TestCase):
         """Simula procesos vivos (PID, línea de comandos) y registra lo que se cerraría."""
         killed = []
         lines = [line for _, line in procs]
+        procs = [(pid, "python.exe", line) for pid, line in procs]  # lanzados con python (AOS-05)
         stack = [mock.patch.object(launcher, "_processes", return_value=procs),
                  mock.patch.object(launcher, "_command_lines", return_value=lines),
                  mock.patch.object(launcher, "_kill", lambda pids: killed.extend(pids))]

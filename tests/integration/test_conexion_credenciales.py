@@ -62,6 +62,10 @@ class TestConexionAutomatica(unittest.TestCase):
 
     def test_token_del_broker_lo_publica_el_runner_y_lo_leen_las_apps(self):
         with TestClient(create_app(), raise_server_exceptions=False) as c:
+            for app in ("chatygpt", "model_drift"):  # mandan trabajo al Broker (AOS-03)
+                c.post("/api/v1/policies", headers=self._auth("director"), json={
+                    "policy_id": f"eco_{app}_base", "policy_key": f"{app}_base", "scope": f"{app}:broker",
+                    "decision_if_matched": "ALLOW", "unconditional": True})
             url = "/api/v1/credentials/broker"
             self.assertEqual(c.get(url, headers=self._auth("chatygpt")).status_code, 503)
             # Una app no puede envenenar el token que usan las demás

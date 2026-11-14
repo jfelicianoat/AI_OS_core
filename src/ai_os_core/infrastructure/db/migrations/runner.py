@@ -2,7 +2,6 @@
 Comentarios en español.
 """
 
-import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
 from ..connection import DatabaseManager

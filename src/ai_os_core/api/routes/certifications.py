@@ -2,9 +2,11 @@
 Comentarios en español.
 """
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional
 from ai_os_core.domain.certifications import CertificationApplicability, EvaluationVerdict
 from ai_os_core.application.certification_service import CertificationService
 from ai_os_core.api.dependencies import get_certification_service
@@ -20,6 +22,19 @@ class CertificationRegisterRequest(BaseModel):
     evaluation_verdict: str
     is_applicable: bool
     revision: int = 1
+    evidence_sha256: Optional[str] = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    expires_at: Optional[datetime] = None
+
+    @field_validator("expires_at")
+    @classmethod
+    def _caducidad_futura(cls, value: Optional[datetime]) -> Optional[datetime]:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            raise ValueError("expires_at necesita zona horaria (UTC)")
+        if value <= datetime.now(timezone.utc):
+            raise ValueError("expires_at ya ha pasado: una certificación no nace caducada")
+        return value.astimezone(timezone.utc)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -43,7 +58,9 @@ def register_certification(
         source_system=req.source_system,
         evaluation_verdict=verdict,
         is_applicable=req.is_applicable,
-        revision=req.revision
+        revision=req.revision,
+        evidence_sha256=req.evidence_sha256,
+        expires_at=req.expires_at.isoformat() if req.expires_at else None,
     )
     saved = service.register_certification(cert)
     return saved.to_dict()

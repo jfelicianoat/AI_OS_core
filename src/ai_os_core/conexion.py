@@ -54,6 +54,18 @@ def _write(path: Path, content: dict) -> None:
     os.replace(tmp, path)  # una app que lee a la vez ve el fichero viejo o el nuevo, nunca a medias
 
 
+def _catalog_principals() -> list:
+    """Principals del catálogo de apps (sin importar `launcher`: `app` importa este módulo)."""
+    path = Path(os.getenv("AI_OS_APPS_FILE") or Path(__file__).resolve().parents[2] / "config" / "apps.json")
+    try:
+        apps = json.loads(path.read_text(encoding="utf-8")).get("apps", [])
+    except (OSError, ValueError, AttributeError):
+        return []
+    # Las remotas (el Broker) no viven en este equipo: no leen esta carpeta
+    return [a.get("principal") or a["id"] for a in apps
+            if isinstance(a, dict) and a.get("id") and a.get("kind") != "remote"]
+
+
 def provision(fixed: Dict[str, str], port: int) -> Dict[str, str]:
     """principal -> token para el director y cada app; crea los que falten y los publica.
 
@@ -62,7 +74,8 @@ def provision(fixed: Dict[str, str], port: int) -> Dict[str, str]:
     folder = connect_dir()
     folder.mkdir(parents=True, exist_ok=True)
     result = {}
-    for principal in (DIRECTOR, *PRINCIPALS):
+    # PRINCIPALS es el mínimo garantizado; el catálogo añade las apps nuevas sin tocar código
+    for principal in dict.fromkeys((DIRECTOR, *PRINCIPALS, *_catalog_principals())):
         path = folder / f"{principal}.json"
         token = fixed.get(principal) or _read_token(path) or secrets.token_urlsafe(32)
         _write(path, {"principal": principal, "core_url": f"http://127.0.0.1:{port}", "token": token})

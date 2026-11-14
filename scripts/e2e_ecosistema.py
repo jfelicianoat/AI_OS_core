@@ -16,7 +16,13 @@ Model_Drift y Gestión Tareas IA sólo se leen (modo ro). La regla para converti
 Model_Drift en veredicto es de este guion, no de Model_Drift: media de pass_rate sobre casos
 aplicables >= 0.8 con al menos 3 casos -> CERTIFIED; < 0.5 -> REJECTED; si no, INDETERMINATE.
 """
-import hashlib, json, os, sqlite3, sys, time, uuid
+import hashlib
+import json
+import os
+import sqlite3
+import sys
+import time
+import uuid
 from pathlib import Path
 import httpx
 

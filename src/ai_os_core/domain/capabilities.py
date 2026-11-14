@@ -5,7 +5,7 @@ Comentarios en español.
 
 from enum import Enum
 from dataclasses import dataclass, field, asdict
-from typing import Optional, Any
+from typing import Any
 from .contracts import utc_now_iso
 
 

@@ -3,7 +3,6 @@ Comentarios en español.
 """
 
 import json
-import sqlite3
 from typing import Optional
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.domain.restore import OperationReceipt, OperationExecutionStatus

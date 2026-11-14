@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verificar:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.13", cache: pip }
+      - run: python -m pip install -e ".[dev]"
+      - name: Lint
+        if: ${{ !cancelled() }}
+        run: python -m ruff check .
+      - name: Tests
+        if: ${{ !cancelled() }}
+        run: python -m pytest -q
+        env: { AI_OS_AUTO_TOKENS: "false" }

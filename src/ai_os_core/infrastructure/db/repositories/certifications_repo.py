@@ -6,8 +6,23 @@ import sqlite3
 from typing import Optional, List
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.domain.certifications import CertificationApplicability, EvaluationVerdict
-from ai_os_core.domain.contracts import utc_now_iso
 from ai_os_core.domain.errors import ConflictError
+
+
+def _from_row(row: sqlite3.Row) -> CertificationApplicability:
+    """Fila -> certificación vigente: si ha caducado se devuelve EXPIRED (lo guardado no cambia)."""
+    return CertificationApplicability(
+        model_id=row["model_id"],
+        capability_id=row["capability_id"],
+        version=row["version"],
+        source_system=row["source_system"],
+        evaluation_verdict=EvaluationVerdict(row["evaluation_verdict"]),
+        is_applicable=bool(row["is_applicable"]),
+        last_verified_at=row["last_verified_at"],
+        revision=row["revision"],
+        evidence_sha256=row["evidence_sha256"],
+        expires_at=row["expires_at"],
+    ).as_of()
 
 
 class CertificationsRepository:
@@ -24,14 +39,16 @@ class CertificationsRepository:
                 """
                 INSERT INTO certification_applicability (
                     model_id, capability_id, version, source_system, evaluation_verdict,
-                    is_applicable, last_verified_at, revision
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    is_applicable, last_verified_at, revision, evidence_sha256, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(model_id, capability_id, version) DO UPDATE SET
                     source_system = excluded.source_system,
                     evaluation_verdict = excluded.evaluation_verdict,
                     is_applicable = excluded.is_applicable,
                     last_verified_at = excluded.last_verified_at,
-                    revision = excluded.revision
+                    revision = excluded.revision,
+                    evidence_sha256 = excluded.evidence_sha256,
+                    expires_at = excluded.expires_at
                 WHERE excluded.revision >= certification_applicability.revision
                   AND excluded.source_system = certification_applicability.source_system;
                 """,
@@ -43,7 +60,9 @@ class CertificationsRepository:
                     cert.evaluation_verdict.value,
                     1 if cert.is_applicable else 0,
                     cert.last_verified_at,
-                    cert.revision
+                    cert.revision,
+                    cert.evidence_sha256,
+                    cert.expires_at,
                 )
             )
             # La proyección es monótona: una revisión anterior que llega tarde
@@ -81,16 +100,7 @@ class CertificationsRepository:
             row = cursor.fetchone()
             if not row:
                 return None
-            return CertificationApplicability(
-                model_id=row["model_id"],
-                capability_id=row["capability_id"],
-                version=row["version"],
-                source_system=row["source_system"],
-                evaluation_verdict=EvaluationVerdict(row["evaluation_verdict"]),
-                is_applicable=bool(row["is_applicable"]),
-                last_verified_at=row["last_verified_at"],
-                revision=row["revision"]
-            )
+            return _from_row(row)
         finally:
             conn.close()
 
@@ -101,18 +111,6 @@ class CertificationsRepository:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM certification_applicability ORDER BY last_verified_at DESC;")
             rows = cursor.fetchall()
-            return [
-                CertificationApplicability(
-                    model_id=row["model_id"],
-                    capability_id=row["capability_id"],
-                    version=row["version"],
-                    source_system=row["source_system"],
-                    evaluation_verdict=EvaluationVerdict(row["evaluation_verdict"]),
-                    is_applicable=bool(row["is_applicable"]),
-                    last_verified_at=row["last_verified_at"],
-                    revision=row["revision"]
-                )
-                for row in rows
-            ]
+            return [_from_row(row) for row in rows]
         finally:
             conn.close()

@@ -4,7 +4,7 @@ Comentarios en español.
 
 from enum import Enum
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from ai_os_core.domain.contracts import utc_now_iso
 
 
@@ -32,7 +32,7 @@ def combine_autonomy_ceilings(levels: List[AutonomyLevel]) -> AutonomyLevel:
     """Calcula el techo de autonomía como el mínimo de los niveles dados (§3.4)."""
     if not levels:
         return AutonomyLevel.A0
-    sorted_levels = sorted(levels, key=lambda l: AUTONOMY_ORDER[l])
+    sorted_levels = sorted(levels, key=lambda nivel: AUTONOMY_ORDER[nivel])
     return sorted_levels[0]
 
 

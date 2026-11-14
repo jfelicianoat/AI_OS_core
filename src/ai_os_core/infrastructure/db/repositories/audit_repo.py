@@ -3,7 +3,6 @@ Comentarios en español.
 """
 
 import json
-import sqlite3
 from typing import List, Optional
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.domain.audit import DecisionTrace, AuditRecord
