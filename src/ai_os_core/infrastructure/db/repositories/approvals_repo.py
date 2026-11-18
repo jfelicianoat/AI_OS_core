@@ -2,8 +2,7 @@
 Comentarios en español.
 """
 
-import sqlite3
-from typing import Optional, List
+from typing import Optional
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.domain.approvals import (
     ApprovalAuthorization,

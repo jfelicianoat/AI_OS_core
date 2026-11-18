@@ -50,8 +50,8 @@ def _proceso_en(port: int) -> str:
     try:
         lineas = subprocess.run(["netstat", "-ano", "-p", "TCP"], capture_output=True, text=True,
                                 timeout=10).stdout.splitlines()
-        pid = next(l.split()[-1] for l in lineas
-                   if "LISTENING" in l and l.split()[1].endswith(f":{port}"))
+        pid = next(linea.split()[-1] for linea in lineas
+                   if "LISTENING" in linea and linea.split()[1].endswith(f":{port}"))
         fila = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
                               capture_output=True, text=True, timeout=10).stdout.strip()
         return f"{fila.split(',')[0].strip(chr(34)) or 'proceso'} (PID {pid})"

@@ -3,12 +3,10 @@ Comentarios en español.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from typing import List
 from ai_os_core.api.schemas.common import (
     CreateGoalRequest,
     UpdateGoalStatusRequest,
-    CreateObjectiveRequest,
-    PaginatedResponse
+    CreateObjectiveRequest
 )
 from ai_os_core.domain.goals import GoalStatus
 from ai_os_core.application.goals_service import GoalsService

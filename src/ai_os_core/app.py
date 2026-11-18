@@ -7,7 +7,7 @@ import hashlib
 import hmac
 import json
 import os
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response as FastApiResponse
 
 from .bootstrap import bootstrap_database
@@ -24,6 +24,12 @@ from .config import settings
 _PUBLIC_PATHS = {"/health", "/ready", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/monitor"}
 # La página del monitor y sus iconos no llevan datos: los datos se piden con token desde ella.
 _PUBLIC_PREFIXES = ("/monitor/",)
+
+
+#: Respuestas que la idempotencia guarda y repite: las de éxito y las de
+#: petición mal formada (el mismo cuerpo dará siempre el mismo error).
+#: 401, 403, 404, 409 y 429 dependen de un estado que puede cambiar.
+_IDEMPOTENT_REPLAYABLE = frozenset({400, 422})
 
 
 def _load_tokens() -> dict:
@@ -131,8 +137,8 @@ def create_app() -> FastAPI:
             idemp_repo.release(namespaced_key)
             raise
 
-        # 3. Almacenar respuesta si es exitosa o controlada
-        if response.status_code < 500:
+        # 3. Almacenar sólo respuestas definitivas: éxito o petición mal formada
+        if 200 <= response.status_code < 300 or response.status_code in _IDEMPOTENT_REPLAYABLE:
             res_body = [section async for section in response.body_iterator]
             body_text = b"".join(res_body).decode("utf-8", errors="replace")
 
@@ -170,9 +176,11 @@ def create_app() -> FastAPI:
                 return await call_next(request)
             scheme, _, supplied = request.headers.get("Authorization", "").partition(" ")
             supplied = supplied.strip()
+            # En bytes: compare_digest con str no ASCII lanza TypeError y daría 500 en vez de 401
+            supplied_bytes = supplied.encode("utf-8")
             matched, grant = False, None
             for token, owner in tokens.items():  # sin salida temprana: todas las comparaciones cuestan igual
-                if hmac.compare_digest(supplied, token):
+                if hmac.compare_digest(supplied_bytes, token.encode("utf-8")):
                     matched, grant = True, owner
             principal = grant.principal if grant else None
             request.state.token_grant = grant  # lo leen las rutas que reciben scopes o clearance

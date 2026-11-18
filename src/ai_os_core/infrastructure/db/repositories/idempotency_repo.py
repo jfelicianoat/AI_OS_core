@@ -3,6 +3,7 @@ Comentarios en español.
 """
 
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.domain.contracts import utc_now_iso
@@ -10,6 +11,10 @@ from ai_os_core.domain.contracts import utc_now_iso
 
 # response_code = 0 marca una clave reservada cuya operación sigue en curso (§8 in_progress)
 IN_PROGRESS_CODE = 0
+#: Una clave terminada se puede repetir durante un día.
+COMPLETED_TTL = timedelta(hours=24)
+#: Una reserva en curso más vieja que esto es de un proceso que murió.
+IN_PROGRESS_TTL = timedelta(minutes=10)
 
 
 class IdempotencyConflictError(Exception):
@@ -52,6 +57,11 @@ class IdempotencyRepository:
         """
         with self.db_manager.transaction() as conn:
             cursor = conn.cursor()
+            ahora = datetime.now(timezone.utc)
+            cursor.execute(
+                "DELETE FROM idempotency_keys WHERE created_at < ? OR (response_code = ? AND created_at < ?);",
+                ((ahora - COMPLETED_TTL).isoformat(), IN_PROGRESS_CODE, (ahora - IN_PROGRESS_TTL).isoformat()),
+            )
             cursor.execute(
                 "SELECT operation_id, request_digest, response_code, response_body FROM idempotency_keys WHERE key = ?;",
                 (key,)

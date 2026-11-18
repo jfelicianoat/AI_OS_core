@@ -3,14 +3,13 @@ Comentarios en español.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+from typing import List, Dict, Any
 from ai_os_core.domain.planner import (
-    TypedPlanProposal,
     ProposedTask,
     AutonomyLevel
 )
-from ai_os_core.domain.security import AuthorizationPrincipal, ClassificationLevel
+from ai_os_core.domain.security import AuthorizationPrincipal
 from ai_os_core.application.planner_service import PlannerService
 from ai_os_core.application.context_service import SecurityAccessDeniedError
 from ai_os_core.api.dependencies import get_planner_service, enforce_token_grant

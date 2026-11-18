@@ -4,7 +4,7 @@ Comentarios en español.
 """
 
 from dataclasses import dataclass, field, asdict
-from typing import Any, Optional
+from typing import Any
 from .contracts import utc_now_iso
 
 

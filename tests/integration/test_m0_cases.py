@@ -4,9 +4,7 @@ Comentarios en español.
 """
 
 import unittest
-import uuid
 import hashlib
-import json
 
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.infrastructure.db.migrations.runner import MigrationRunner
@@ -39,12 +37,11 @@ from ai_os_core.application.resource_service import ResourceService
 from ai_os_core.application.restore_service import RestoreService
 
 from ai_os_core.domain.goals import GoalStatus
-from ai_os_core.domain.capabilities import ServiceRegistration, CapabilityManifest, ServiceHealthStatus
 from ai_os_core.domain.events import EventEnvelope, EventType
-from ai_os_core.domain.approvals import ApprovalAuthorization, ApprovalUse, ApprovalRevocation
+from ai_os_core.domain.approvals import ApprovalAuthorization, ApprovalUse
 from ai_os_core.domain.resources import ResourceNode, ResourceRelation
 from ai_os_core.domain.restore import OperationStatusQuery, OperationReceipt, OperationExecutionStatus
-from ai_os_core.domain.contracts import IdentityBinding, utc_now_iso
+from ai_os_core.domain.contracts import IdentityBinding
 
 
 class TestAIOSCoreM0Cases(unittest.TestCase):

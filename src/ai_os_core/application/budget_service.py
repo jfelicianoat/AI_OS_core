@@ -8,7 +8,7 @@ from ai_os_core.domain.budget import BudgetReservation, BudgetAccount
 from ai_os_core.domain.contracts import normalize_iso_utc, is_expired
 from ai_os_core.infrastructure.db.repositories.budget_repo import (
     BudgetRepository,
-    InsufficientBudgetError
+    InsufficientBudgetError as InsufficientBudgetError,  # reexportada: la importan las rutas
 )
 
 

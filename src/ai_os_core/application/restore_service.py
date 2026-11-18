@@ -2,7 +2,6 @@
 Comentarios en español.
 """
 
-from typing import Optional
 from ..domain.restore import (
     OperationReceipt,
     OperationExecutionStatus,

@@ -6,13 +6,6 @@ import os
 from pathlib import Path
 from dataclasses import dataclass, field
 
-try:
-    from pydantic_settings import BaseSettings
-    from pydantic import Field
-    HAS_PYDANTIC_SETTINGS = True
-except ImportError:
-    HAS_PYDANTIC_SETTINGS = False
-
 
 def _get_default_db_path() -> str:
     """Calcula la ruta predeterminada de la base de datos SQLite."""

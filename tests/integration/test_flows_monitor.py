@@ -90,8 +90,9 @@ class TestFlowsMonitor(unittest.TestCase):
         self.client.post("/api/v1/policies", json=deny)
         self.client.post("/api/v1/policies", json={"policy_id": _uid("p"), "policy_key": _uid("k"), "scope": scope,
                                                    "decision_if_matched": "ALLOW", "unconditional": True})
-        ask = lambda dc: self.client.post("/api/v1/policies/evaluate", json={
-            "scope": scope, "context": {"data_classification": dc, "flow_id": flow}})
+        def ask(dc):
+            return self.client.post("/api/v1/policies/evaluate", json={
+                "scope": scope, "context": {"data_classification": dc, "flow_id": flow}})
         for _ in range(3):
             ask("restricted")
         self.assertEqual(len(self.client.get(f"/api/v1/flows/{flow}").json()["steps"]), 1)

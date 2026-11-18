@@ -5,11 +5,9 @@ Comentarios en español.
 import unittest
 from ai_os_core.domain.contracts import (
     ResourceReference,
-    IdentityBinding,
-    ProducerStreamIdentity
+    IdentityBinding
 )
-from ai_os_core.domain.goals import Goal, Objective, GoalStatus
-from ai_os_core.domain.events import EventEnvelope, EventType
+from ai_os_core.domain.goals import Goal, GoalStatus
 
 
 class TestContracts(unittest.TestCase):

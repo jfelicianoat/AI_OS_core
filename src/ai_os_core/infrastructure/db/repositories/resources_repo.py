@@ -3,11 +3,10 @@ Comentarios en español.
 """
 
 import json
-import sqlite3
 from typing import Optional, List
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.domain.resources import ResourceNode, ResourceRelation
-from ai_os_core.domain.contracts import IdentityBinding, utc_now_iso
+from ai_os_core.domain.contracts import IdentityBinding
 
 
 class ResourcesRepository:

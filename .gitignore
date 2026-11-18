@@ -27,3 +27,6 @@ logs/
 
 # Ficheros generados (el de conectar el runner lleva un token)
 dist/
+
+# Copias de seguridad de configuración (publican rutas locales)
+*.bak

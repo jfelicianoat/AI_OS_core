@@ -3,7 +3,7 @@ Comentarios en español.
 """
 
 from typing import Optional, List
-from ..domain.capabilities import ServiceRegistration, CapabilityManifest, ServiceHealthStatus
+from ..domain.capabilities import ServiceRegistration, CapabilityManifest
 from ..infrastructure.db.repositories.services_repo import ServicesRepository
 from ..infrastructure.http.security_client import SecurityHttpClientValidator
 

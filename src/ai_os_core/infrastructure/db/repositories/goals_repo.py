@@ -2,7 +2,6 @@
 Comentarios en español.
 """
 
-import sqlite3
 from typing import Optional, List
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.domain.goals import Goal, Objective, GoalStatus

@@ -7,8 +7,7 @@ from ai_os_core.domain.policies import (
     Policy,
     PolicyCondition,
     AuthorizationDecision,
-    TernaryResult,
-    ConditionMode
+    TernaryResult
 )
 from ai_os_core.application.policy_service import PolicyService
 from ai_os_core.infrastructure.db.connection import DatabaseManager

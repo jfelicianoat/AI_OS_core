@@ -10,7 +10,6 @@ Comentarios en español.
 """
 
 import unittest
-import uuid
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.infrastructure.db.migrations.runner import MigrationRunner
 from ai_os_core.infrastructure.db.repositories.budget_repo import (
@@ -30,7 +29,7 @@ from ai_os_core.domain.security import ClassificationLevel, AuthorizationPrincip
 from ai_os_core.domain.budget import BudgetStatus
 from ai_os_core.domain.certifications import CertificationApplicability, EvaluationVerdict
 from ai_os_core.domain.contracts import ResourceReference
-from ai_os_core.domain.planner import ProposedTask, AutonomyLevel, combine_autonomy_ceilings
+from ai_os_core.domain.planner import ProposedTask, AutonomyLevel
 
 
 class TestAdvancedPhases(unittest.TestCase):

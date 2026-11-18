@@ -49,24 +49,24 @@ def load_catalog() -> List[Dict[str, Any]]:
     return [a for a in apps if isinstance(a, dict) and a.get("id")]
 
 
-def _processes() -> List[Tuple[int, str]]:
-    """(PID, línea de comando en minúsculas) de los procesos vivos (Windows), en caché unos segundos."""
+def _processes() -> List[Tuple[int, str, str]]:
+    """(PID, ejecutable, línea de comando), en minúsculas, de los procesos vivos (Windows); en caché unos segundos."""
     now = time.monotonic()
     if now - _process_cache["at"] < _PROCESS_CACHE_S:
         return _process_cache["procs"]
-    procs: List[Tuple[int, str]] = []
+    procs: List[Tuple[int, str, str]] = []
     if sys.platform == "win32":
         # shortcut: sólo Windows (el TFM vive ahí); en otro sistema sólo cuenta la URL de salud
         try:
             out = subprocess.run(
                 ["powershell.exe", "-NoProfile", "-Command",
                  "Get-CimInstance Win32_Process | Where-Object CommandLine | "
-                 "Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress"],
+                 "Select-Object ProcessId,Name,CommandLine | ConvertTo-Json -Compress"],
                 capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW,
             ).stdout
             data = json.loads(out or "[]")
             data = data if isinstance(data, list) else [data]
-            procs = [(int(p["ProcessId"]), str(p["CommandLine"]).lower()) for p in data]
+            procs = [(int(p["ProcessId"]), str(p["Name"]).lower(), str(p["CommandLine"]).lower()) for p in data]
         except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
             logger.exception("No se pudo listar los procesos")
     _process_cache.update(at=now, procs=procs)
@@ -74,12 +74,28 @@ def _processes() -> List[Tuple[int, str]]:
 
 
 def _command_lines() -> List[str]:
-    return [line for _, line in _processes()]
+    return [line for _, _, line in _processes()]
 
 
 def _marks(app: Dict[str, Any]) -> List[str]:
     marks = app.get("match") or []
     return [m.lower() for m in ([marks] if isinstance(marks, str) else marks)]
+
+
+#: Ejecutables que pueden ser el proceso de una app del catálogo. Editores,
+#: navegadores y exploradores de ficheros quedan fuera aunque su línea de
+#: comando mencione la carpeta de la app.
+_RUNNERS = {"python.exe", "pythonw.exe", "py.exe", "cmd.exe", "powershell.exe", "pwsh.exe", "node.exe"}
+
+
+def _is_app_process(name: str, line: str, marks: List[str]) -> bool:
+    for mark in marks:
+        if mark.endswith(".exe"):
+            if name == mark:
+                return True
+        elif name in _RUNNERS and mark in line:
+            return True
+    return False
 
 
 def _health_answers(url: str) -> bool:
@@ -133,7 +149,8 @@ def _token_for(principal: Optional[str]) -> str:
     for token, grant in tokens.items():
         if principal and grant.principal == principal:
             return token
-    return os.getenv("AI_OS_API_TOKEN", "")
+    logger.warning("La app '%s' no tiene token propio en Core: se lanza sin credencial.", principal)
+    return ""
 
 
 def _spawn(command: List[str], cwd: Optional[str], env: Dict[str, str]) -> None:
@@ -217,8 +234,8 @@ async def stop_app(app_id: str, request: Request, force: bool = Query(False),
     if state["needed_by"] and not force:
         raise HTTPException(status_code=409, detail=f"{', '.join(state['needed_by'])} depende de {state['name']}: confirma para pararla igualmente.")
     own = {os.getpid(), os.getppid()}  # Core nunca se cierra a sí mismo
-    pids = [pid for pid, line in await run_in_threadpool(_processes)
-            if pid not in own and any(m in line for m in _marks(app))]
+    pids = [pid for pid, name, line in await run_in_threadpool(_processes)
+            if pid not in own and _is_app_process(name, line, _marks(app))]
     if not pids:
         raise HTTPException(status_code=409, detail=f"{state['name']} no está en marcha.")
     await run_in_threadpool(_kill, pids)
@@ -241,7 +258,9 @@ async def start_app(app_id: str, request: Request, flows: FlowsRepository = Depe
         raise HTTPException(status_code=409, detail=f"Antes hay que arrancar: {', '.join(state['blocked_by'])}.")
     core_url = str(request.base_url).rstrip("/")
     token = _token_for(app.get("principal", app_id))
-    env = dict(os.environ)
+    # Los tokens de Core no se heredan: cada app recibe sólo el suyo, por las
+    # variables que declare su entrada del catálogo.
+    env = {k: v for k, v in os.environ.items() if k not in ("AI_OS_API_TOKEN", "AI_OS_API_TOKENS")}
     # La app arrancada desde aquí queda conectada a este Core con su propio token
     for key, value in (app.get("env") or {}).items():
         env[key] = str(value).replace("{core_url}", core_url).replace("{token}", token)
