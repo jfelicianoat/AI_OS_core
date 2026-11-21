@@ -1,4 +1,4 @@
-# PC IA: lo que hay que hacer para que nadie pegue tokens (AI OS Core 0.4.0)
+# PC IA: lo que hay que hacer para que nadie pegue tokens (AI OS Core 0.4.0; tokens de cliente desde 0.5.0, §4)
 
 Desde el 19-oct-2026 el token del AI Broker lo reparte AI OS Core a todas las apps del PC
 principal. Lo recibe del runner de Agora, que vive en el PC IA junto al Broker y lo lee del
@@ -83,3 +83,30 @@ firmando el tablero y Core.
 **Pendiente aparte:** el certificado HTTPS del tablero y de Core (`C:\Agora\pki\server.crt`, CA
 de Agora) caduca el 7-oct-2027 y no se puede renovar sin la frase perdida. Antes de esa
 fecha habrá que pasarlos también a una CA nueva.
+
+## 4. Tokens de cliente del Broker (AI OS Core 0.5.0, 21-nov-2026)
+
+Desde 0.5.0 una app ya no recibe de Core el token de administración del Broker, sino **su token
+de cliente** (contrato 2.12, §3.2 de `Client_API.md`, Broker del 15-nov-2026 o posterior):
+
+- Solo abre las rutas de trabajo (tareas, ficheros, grupos, System-1, `auth/check`) y solo sobre lo
+  que creó esa app: una tarea de otra app responde `404`.
+- **No caduca cuando el Broker se reinicia.** Core lo sigue entregando aunque el runner no haya
+  vuelto a publicar el de administración.
+- Core lo emite la primera vez que la app lo pide, con el token de administración que publica el
+  runner (`POST /api/v1/admin/client-tokens`, nombre = principal de la app). Lo guarda en
+  `%LOCALAPPDATA%\AIOSCore\data\broker_client_tokens.json` y, antes de entregarlo, comprueba con
+  `GET /api/v1/auth/check` que sigue valiendo. Si el operador lo revoca desde el panel del Broker,
+  Core emite otro en la siguiente petición. Si el nombre ya estaba ocupado (por ejemplo, porque se
+  borró ese fichero), revoca el viejo y emite otro.
+- El runner de Agora y el director siguen recibiendo el de administración.
+- La respuesta de `GET /api/v1/credentials/broker` lleva `scope` (`client` o `admin`).
+- Si Core no puede emitir (Broker antiguo, sin red, o `AI_OS_BROKER_URL=off`), entrega el de
+  administración, como antes. La URL del Broker sale de la entrada `ai_broker` del catálogo
+  (`config/apps.json`); `AI_OS_BROKER_URL` la cambia y `AI_BROKER_CA_CERT` cambia la CA
+  (por defecto `C:\Agora\pki-broker\ca.crt`).
+
+En el PC IA no hay que hacer nada. **Al pasar a 0.5.0**, las tareas que una app tenga a medias se
+crearon con el token de administración. Con el de cliente pasan a responder `404`, así que hay que
+cambiar con las apps paradas o sin trabajo en curso (KO sin documentos «En proceso», ChatyGPT sin
+turnos esperando).

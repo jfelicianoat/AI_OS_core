@@ -135,8 +135,7 @@ def list_apps(request: Request, repo: FlowsRepository = Depends(get_flows_repo))
 
     Una app vista en un flujo que Core no tiene registrada sale como `known: false`.
     """
-    from ai_os_core.app import _load_tokens  # perezoso: app importa este módulo
-    registered = {g.principal for g in _load_tokens().values() if g.principal}
+    registered = {g.principal for g in request.app.state.tokens.values() if g.principal}
     registered |= set(repo.policy_principals())
     seen = set(repo.participants()) - {"core"}
     return [{"app": a, "known": a in registered or a in ("ai_broker", "broker")} for a in sorted(registered | seen)]
@@ -174,11 +173,13 @@ async def stream(request: Request, after: Optional[int] = Query(None, ge=0),
 
 
 @router.get("/{flow_id}")
-def get_flow(flow_id: str, repo: FlowsRepository = Depends(get_flows_repo)):
-    steps = repo.flow(flow_id)
+def get_flow(flow_id: str, limit: Optional[int] = Query(None, ge=1, le=5000),
+             repo: FlowsRepository = Depends(get_flows_repo)):
+    """Pasos del flujo; con `limit`, los últimos. `total` dice cuántos tiene en total."""
+    steps = repo.flow(flow_id, limit)
     if not steps:
         raise HTTPException(status_code=404, detail=f"No hay pasos para el flujo '{flow_id}'.")
-    return {"flow_id": flow_id, "steps": steps}
+    return {"flow_id": flow_id, "steps": steps, "total": repo.count(flow_id) if limit else len(steps)}
 
 
 @page_router.get("/monitor", include_in_schema=False)

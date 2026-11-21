@@ -1,4 +1,4 @@
-# AI OS Core — Control Plane (M0) · v0.4.4
+# AI OS Core — Control Plane (M0) · v0.5.0
 
 Control plane determinista, federado y local-first para la plataforma AI OS.
 
@@ -15,14 +15,11 @@ Control plane determinista, federado y local-first para la plataforma AI OS.
 - FastAPI, Pydantic v2, Uvicorn (opcional para ejecución REST; el core incluye modo desacoplado estándar)
 
 ## Ejecución y Pruebas
-### Ejecutar pruebas con pytest o unittest:
+### Ejecutar pruebas
 ```bash
-python -m unittest discover -s tests
+python -m pytest -q          # o run.bat test
 ```
-O con pytest:
-```bash
-pytest -v
-```
+Los tests usan una base y una carpeta de conexión temporales y quitan del entorno `AI_OS_API_TOKEN(S)`: nunca tocan la base real ni los ficheros de conexión. También con `python -m unittest discover -s tests` (desde 0.4.6; antes esa orden iba contra la base real).
 
 ### Iniciar el servidor localmente:
 ```bash
@@ -33,7 +30,7 @@ uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8720 --reload
 ### Base de datos
 Por defecto `%LOCALAPPDATA%\AIOSCore\data\ai_os_core.db`; se cambia con `AI_OS_DB_PATH`.
 Los tests redirigen siempre a un fichero temporal (`tests/__init__.py`): nunca tocan la base real.
-Otros ajustes: `AI_OS_ALLOWED_HOSTS` (hosts DNS extra admitidos en el registro), `AI_OS_ALLOW_PRIVATE_NETS` (por defecto `true`).
+Otros ajustes: `AI_OS_ALLOWED_HOSTS` (hosts DNS extra admitidos en el registro), `AI_OS_ALLOW_PRIVATE_NETS` (por defecto `true`), `AI_OS_MONITOR_RETENTION_DAYS` (días que se guardan los pasos del monitor, 90; 0 = siempre).
 
 ## Cambios 0.2.1 (pruebas 2026-10-18)
 Sondeo de las 49 rutas (cuerpos vacíos, tipos y valores límite) y de sus escenarios, más el E2E real con Broker y Agora (31 comprobaciones). Defectos corregidos, cada uno con su test en `tests/integration/test_api_regressions_0_2_1.py` (comprobado que falla con el código anterior):
@@ -59,6 +56,28 @@ Antes de 0.2.2 ninguna otra app llamaba a Core; estos recorridos la simulaban de
 - `scripts/e2e_ecosistema.py` (33): certificaciones a partir de los resultados reales de Model_Drift, elección del modelo de Athena según esas certificaciones (`muse-glimmer:latest` autorizado; `qwen3.8:27b` y `lfm2:24b` descartados), run real de Athena sobre el Broker gobernado por Core, y proyección de las 76 tareas de una copia de Gestión Tareas IA con su estado canónico idéntico al origen.
 - `scripts/e2e_resto_apps.py <core> <carpeta_copias>` (18): copias de las bases de ChatyGPT, Knowledge Orchestrator, Trading AI desktop y Local AI Lab. Core recomienda la acción correcta tras una caída para las 4 293 tareas al Broker de ChatyGPT y las 235 de KO (incluidas las que siguen en cola o en curso), y proyecta sus conversaciones, flujos, 11 backtests y 10 registros de experimentos con el estado canónico idéntico al origen. Verde también con Core arrancado sólo con tokens por app.
 - LARM no entra en ningún recorrido: hoy sólo es especificación y prompts, no hay programa que gobernar.
+
+## Cambios 0.5.0: tokens de cliente del Broker (2026-11-21)
+Aplica a las apps la especificación del Broker del 15 y 20-nov-2026 (`docs/Contacto con el broker/Client_API.md`, contrato 2.12, §3.2 y §12).
+- **Cada app recibe su token de cliente, no el de administración.** `GET /api/v1/credentials/broker` emite en el Broker (`POST /api/v1/admin/client-tokens`, nombre = principal) un token por app con el de administración que publica el runner. Lo guarda en `broker_client_tokens.json`, junto a la base, y antes de entregarlo comprueba con `auth/check` que sigue valiendo. Si se revocó, emite otro; si el nombre estaba ocupado sin valor guardado, revoca el viejo y emite otro. Solo abre las rutas de trabajo y solo sobre lo de esa app, y no caduca al reiniciarse el Broker: Core lo entrega aunque el runner aún no haya publicado. El runner y el director siguen con el de administración. La respuesta añade `scope` (`client`/`admin`) y, en el de cliente, `client_name`.
+- Si no se puede emitir (Broker anterior al 15-nov, sin red o `AI_OS_BROKER_URL=off`), se entrega el de administración, como antes. La URL sale de la entrada `ai_broker` de `config/apps.json`; la CA, de `AI_BROKER_CA_CERT` (por defecto `C:\Agora\pki-broker\ca.crt`). Los tests apagan la emisión (`tests/__init__.py`).
+- **Las apps no cambian de código.** Todas leen solo `token` de esta respuesta. Ninguna usa rutas de operador: Athena solo llama a `dashboard/tasks` con Brokers sin `auth/check`. Todas aceptan un `200` idempotente con el estado real y tratan el `422` de un prompt vacío como error de contrato.
+- **Al desplegar:** lo que una app tenga a medias se creó con el token de administración, y con el de cliente responde `404`. Hay que cambiar con KO sin documentos «En proceso» y ChatyGPT sin turnos esperando.
+- Pruebas: `tests/integration/test_broker_client_tokens.py` (Broker simulado: emisión, reutilización, revocación, nombre ocupado, sin red, desactivado). Prueba real del 21-nov con un Core de prueba y el Broker del PC IA: 25/25 (las 8 apps reciben su token y el Broker lo reconoce con su `client_name`; el de cliente no abre la gestión de tokens; repetición idempotente `200 completed`; tarea ajena `404`; prompt de espacios `422`). Después, cada app con su token de cliente contra el Broker real: Model_Drift 12/12, Local AI Lab 7/7, Knowledge Orchestrator 7/7, Trading AI 6/6, Athena 9/9 y Gestión Tareas IA 11/11 (su `verify_ai_os_core.py`), ChatyGPT 3/3 (`real_ai_os_core_governs_a_chat_turn`) y Gestión Favoritos 5/5 (credencial pedida a Core por su camino real, tanda con grupo e idempotencia). Desplegado ese día: Core real reiniciado en 0.5.0 (copia previa `ai_os_core.antes-tokens-cliente-20261121.db`). Las 8 apps reciben `scope: client` y el Broker las reconoce por su nombre; el de prueba había usado los nombres, así que el real revocó y emitió de nuevo. Al cambiar, KO tenía 6 tareas del 16-nov ya terminadas en el Broker y sin recoger: con el token de cliente dan 404 y hay que reintentarlas desde KO. Gstor de ideas y desarrollos no pasa por Core: su token se pone a mano y puede ser uno de cliente (`scripts\client_tokens.py` en el PC del Broker).
+
+## Cambios 0.4.6: auditoría del 19-nov-2026
+Registro completo con evidencias: `docs/Auditoria 20261119/REGISTRO.md`.
+- **Administrar Core es cosa del director.** Crear o cambiar políticas, conceder o revocar aprobaciones, registrar servicios y capacidades, crear o cambiar metas y objetivos y todo el presupuesto (cuentas, reservar, consumir, liberar) exige el token del director (sin tokens, sólo desde este equipo). Antes el token de cualquier app podía: ChatyGPT, con un DENY de ámbito `*`, dejaba sin Broker a todas las apps, y podía gastar el saldo de otra o cancelar sus metas. Una app sólo consume aprobaciones de su ámbito (`<app>:…`) y sólo relaciona recursos que son suyos. Lo que usan las apps (evaluar, recibos, saltos, certificaciones, credencial del Broker, eventos, paquetes de contexto, propuestas de plan) no cambia. `director=…` dentro de `AI_OS_API_TOKENS` cuenta como director.
+- **Políticas** (spec 0.6.1 §3.3): un `policy_id` no cambia de `scope` ni de `policy_key` (antes respondía «created» sin cambiar nada) → 409; la revisión no retrocede → 409; con la misma revisión sólo se habilita o deshabilita, cualquier otro cambio pide subirla → 409; sólo una política habilitada por `(policy_key, scope)` → 409 (si una base anterior trae gemelas, Core lo avisa en el registro al arrancar). Crear da 201 `created`; rehacer la misma da 200 `updated`.
+- **Recursos del grafo:** con token de app, `owner_service` tiene que ser esa app (403 si no), igual que `source_system` y `producer_id`.
+- **Tokens:** se leen una vez al arrancar. Antes, consultar el monitor o arrancar una app volvía a provisionar y, si alguien había borrado el fichero de conexión de una app, lo regeneraba con un token que el Core en marcha rechazaba (401). Ahora el fichero se repone al reiniciar Core.
+- **Retención del monitor:** los pasos de flujo de más de `AI_OS_MONITOR_RETENTION_DAYS` días (90 por defecto; 0 = nunca) se borran al arrancar y, en marcha, como mucho una vez por hora (migración 007: índice por fecha). Sólo los pasos del monitor: recibos, trazas de decisión y eventos no se tocan. En un mes real entraron 75 861 pasos (36 MB).
+- **Monitor:** el detalle de una petición trae de Core su recorrido (antes sólo lo que la página había visto desde que se abrió): los últimos 300 pasos con `GET /flows/{id}?limit=300`, que devuelve también `total`, y lo avisa; si Core no contesta, dice que enseña sólo lo visto en la página; la pantalla del token dice dónde está el del director y qué no puede hacer el de una app; el estado vacío usa la dirección real de Core (decía `:8000`); las pestañas responden a flechas, Inicio y Fin; la página olvida los flujos más viejos a partir de 1 000.
+- **Arranque:** `scripts/run_local.ps1` usa `serve` (antes uvicorn con `AI_OS_HOST`: con `AI_OS_HOST=0.0.0.0` abría HTTP sin cifrar a la red, tokens incluidos). `run.bat docs` abre la documentación cuando Core ya contesta. `run.bat test` y `scripts/run_tests.ps1` usan pytest.
+- **Tests aislados siempre:** `python -m unittest discover -s tests` no importaba `tests/__init__.py` y los tests escribían en la base real y en la carpeta de conexión con los tokens del usuario. Ahora cada módulo de test carga el aislamiento en su primera línea (base y carpeta de conexión temporales, sin tokens del usuario), se lance desde `tests`, `tests/unit` o `tests/integration` (`tests/unit/test_aislamiento_tests.py`).
+- **Versión:** el informe del 14-nov anunciaba 0.4.5 (AOS-01…07: cabecera no ASCII, idempotencia con caducidad, credencial del Broker sólo para quien la usa, apps lanzadas sin heredar tokens, «Parar» sólo procesos de la app, certificaciones con `evidence_sha256`/`expires_at`, catálogo como fuente de principals), pero el código seguía diciendo 0.4.4. Esos cambios van incluidos en 0.4.6.
+- Tests: `tests/integration/test_auditoria_2026_11_19.py` (15) y `tests/unit/test_aislamiento_tests.py` (1, con 3 casos); cada uno comprobado fallando al deshacer su arreglo. 126 tests en total.
+- **Al actualizar:** reiniciar Core (`Arrancar AI OS Core.bat`). La migración 007 sólo añade un índice. Si algún guion propio crea políticas, metas, cuentas o reservas con el token de una app, tiene que usar el del director. `run.bat migrate` también aplica la retención del monitor.
 
 ## Cambios 0.4.4: alta de Gestión Favoritos (2026-11-05)
 - Nuevo principal `gestion_favoritos` (Gestión Favoritos 0.2.1): Core le genera su token y su fichero de conexión, `sembrar_ecosistema.py` crea las políticas de `gestion_favoritos:broker`, y la app sale en el lanzador (`config/apps.json`, viva si contesta `http://127.0.0.1:8790/api/healthz`) y en la constelación con su icono (`monitor/iconos/gestion_favoritos.svg`, Magnific).

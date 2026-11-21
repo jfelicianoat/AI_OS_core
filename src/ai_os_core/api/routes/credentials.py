@@ -7,6 +7,9 @@ si el Broker les responde 401/403, lo vuelven a pedir.
 
 Se guarda sólo en memoria, nunca en la base: si Core se reinicia, el runner lo repone en
 su siguiente vuelta.
+
+Desde 0.5.0 una app no recibe ese token, sino su token de cliente del Broker, que Core
+emite con él (ver `broker_client_tokens`). El campo `scope` de la respuesta dice cuál es.
 """
 
 import threading
@@ -14,6 +17,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from ai_os_core import broker_client_tokens
 from ai_os_core.api.dependencies import get_flows_repo
 from ai_os_core.infrastructure.db.repositories.flows_repo import FlowsRepository
 
@@ -70,12 +74,21 @@ def read_broker_token(request: Request, flows: FlowsRepository = Depends(get_flo
     if principal is not None and principal not in PUBLISHERS and principal not in flows.broker_principals():
         raise HTTPException(status_code=403, detail=f"'{principal}' no manda trabajo al AI Broker: no recibe su token.")
     with _lock:
-        if not _broker:
-            raise HTTPException(
-                status_code=503,
-                detail="Core aún no tiene el token del AI Broker: lo publica el runner de Agora del PC IA al arrancar.",
-            )
-        return dict(_broker)
+        published = dict(_broker)
+    # Una app recibe su token de cliente (§3.2 del contrato): solo rutas de trabajo, solo lo
+    # suyo, y no caduca al reiniciarse el Broker. El director y el runner, el de administración.
+    if principal is not None and principal not in PUBLISHERS:
+        client = broker_client_tokens.client_token_for(principal, published.get("token"))
+        if client:
+            return {"token": client, "scope": "client", "client_name": principal,
+                    "updated_at": published.get("updated_at"), "published_by": "core"}
+    if not published:
+        raise HTTPException(
+            status_code=503,
+            detail="Core aún no tiene el token del AI Broker: lo publica el runner de Agora del PC IA al arrancar.",
+        )
+    # Sin token de cliente (Broker anterior al 15-nov, sin red o desactivado) sigue el de siempre
+    return {**published, "scope": "admin"}
 
 
 def reset_for_tests() -> None:

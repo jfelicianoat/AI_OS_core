@@ -6,7 +6,8 @@ AI_OS_HOST:<AI_OS_TLS_PORT> (8443) con el certificado del tablero de Agora, firm
 en la que el runner ya confía: por la red viajan tokens, nunca en claro.
 
 `python -m ai_os_core.serve`. Con AI_OS_OPEN_MONITOR=1 abre el monitor ya con el token del
-director, sin pedirlo.
+director, sin pedirlo; con AI_OS_OPEN_MONITOR=docs abre la documentación de la API. Siempre cuando
+Core ya contesta (antes `run.bat docs` abría el navegador contra un Core que aún no escuchaba).
 """
 
 import asyncio
@@ -28,11 +29,11 @@ LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 
 
 def _director_token() -> str:
-    from .app import _load_tokens
-    return next((t for t, g in _load_tokens().items() if g.principal is None), "")
+    from .app import app
+    return next((t for t, g in app.state.tokens.items() if g.principal is None), "")
 
 
-def _open_monitor(port: int) -> None:
+def _open_monitor(port: int, page: str = "monitor") -> None:
     url = f"http://127.0.0.1:{port}"
     for _ in range(120):  # espera a que conteste antes de abrir el navegador
         try:
@@ -40,6 +41,9 @@ def _open_monitor(port: int) -> None:
             break
         except OSError:
             time.sleep(0.5)
+    if page == "docs":
+        webbrowser.open(f"{url}/docs")
+        return
     token = _director_token()
     # El token va tras '#': el navegador no lo envía a ningún servidor; la página lo guarda y lo borra de la barra
     webbrowser.open(f"{url}/monitor" + (f"#token={token}" if token else ""))
@@ -74,7 +78,7 @@ def puerto_ocupado(port: int) -> str | None:
 
 
 def main() -> int:
-    from .app import _load_tokens, app
+    from .app import app
 
     port = settings.port
     motivo = puerto_ocupado(port)
@@ -83,7 +87,7 @@ def main() -> int:
         return 1
     configs = [uvicorn.Config(app, host="127.0.0.1", port=port)]
     if settings.host not in LOOPBACK:
-        if not _load_tokens():
+        if not app.state.tokens:
             print("AI_OS_HOST abre Core a la red y no hay tokens (AI_OS_AUTO_TOKENS=false sin AI_OS_API_TOKEN): no se arranca.")
             return 1
         cert = Path(os.getenv("AI_OS_TLS_CERT", r"C:\Agora\pki\server.crt"))
@@ -98,8 +102,9 @@ def main() -> int:
                                       ssl_certfile=str(cert), ssl_keyfile=str(key)))
         print(f"Red local: https://{settings.host}:{tls_port} (certificado {cert})")
     print(f"Este equipo: http://127.0.0.1:{port}")
-    if os.getenv("AI_OS_OPEN_MONITOR") == "1":
-        threading.Thread(target=_open_monitor, args=(port,), daemon=True).start()
+    abrir = os.getenv("AI_OS_OPEN_MONITOR", "")
+    if abrir in ("1", "docs"):
+        threading.Thread(target=_open_monitor, args=(port, "docs" if abrir == "docs" else "monitor"), daemon=True).start()
 
     servers = [uvicorn.Server(c) for c in configs]
 

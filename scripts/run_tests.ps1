@@ -5,8 +5,8 @@ Write-Host "Ejecutando suite de pruebas de AI OS Core (M0)..." -ForegroundColor 
 
 $env:PYTHONPATH = "src"
 
-# Ejecutar con el runner de unittest estándar
-python -m unittest discover -s tests -v
+# Los tests se aíslan solos (base y carpeta de conexión temporales, sin los tokens del usuario)
+python -m pytest -q
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`nTodas las pruebas han pasado satisfactoriamente." -ForegroundColor Green

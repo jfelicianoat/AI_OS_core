@@ -3,13 +3,10 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "Iniciando AI OS Core Service..." -ForegroundColor Cyan
 
-# Definir variables de entorno locales si no existen
 if (-not $env:AI_OS_ENV) { $env:AI_OS_ENV = "development" }
-if (-not $env:AI_OS_HOST) { $env:AI_OS_HOST = "127.0.0.1" }
-if (-not $env:AI_OS_PORT) { $env:AI_OS_PORT = "8720" }
-
-# Asegurar PYTHONPATH
 $env:PYTHONPATH = "src"
 
-# Ejecutar con uvicorn
-python -m uvicorn ai_os_core.app:app --host $env:AI_OS_HOST --port $env:AI_OS_PORT --reload
+# Siempre con serve: HTTP sólo en 127.0.0.1 y, si AI_OS_HOST abre a la red, HTTPS con certificado.
+# Antes se llamaba a uvicorn con --host $env:AI_OS_HOST: con AI_OS_HOST=0.0.0.0 (lo deja
+# «Abrir Core a la red.bat») Core quedaba en HTTP sin cifrar para toda la red, tokens incluidos.
+python -m ai_os_core.serve

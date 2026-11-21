@@ -4,7 +4,7 @@ Comentarios en español.
 
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from ai_os_core.api.schemas.common import CreatePolicyRequest, PolicyEvaluateRequest
 from ai_os_core.domain.policies import (
     Policy,
@@ -14,16 +14,17 @@ from ai_os_core.domain.policies import (
 )
 from ai_os_core.application.policy_service import PolicyService
 from ai_os_core.infrastructure.db.repositories.policies_repo import PoliciesRepository
-from ai_os_core.api.dependencies import get_policy_service, get_policies_repo, get_flows_repo
+from ai_os_core.api.dependencies import get_policy_service, get_policies_repo, get_flows_repo, require_director
 from ai_os_core.api.routes.flows import flow_id_from, record_safely, reporter
 from ai_os_core.infrastructure.db.repositories.flows_repo import FlowsRepository
 
 router = APIRouter(prefix="/api/v1/policies", tags=["Policies"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_director)])
 def create_policy(
     req: CreatePolicyRequest,
+    response: Response,
     repo: PoliciesRepository = Depends(get_policies_repo)
 ):
     """Registra una nueva política determinista en el control plane."""
@@ -63,14 +64,17 @@ def create_policy(
     )
 
     try:
-        repo.save_policy(policy)
-        return {
-            "policy_id": policy.policy_id,
-            "policy_key": policy.policy_key,
-            "status": "created"
-        }
+        created = repo.save_policy(policy)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    # 201 al crear; 200 al rehacer la misma política (habilitarla, deshabilitarla, nueva revisión)
+    response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    return {
+        "policy_id": policy.policy_id,
+        "policy_key": policy.policy_key,
+        "revision": policy.revision,
+        "status": "created" if created else "updated"
+    }
 
 
 @router.post("/evaluate")

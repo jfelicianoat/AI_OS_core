@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import Optional
 from ai_os_core.application.budget_service import BudgetService, InsufficientBudgetError
-from ai_os_core.api.dependencies import get_budget_service
+from ai_os_core.api.dependencies import get_budget_service, require_director
 
 router = APIRouter(prefix="/api/v1/budget", tags=["Budget"])
 
@@ -27,7 +27,7 @@ class CreateAccountRequest(BaseModel):
     balance: float = Field(..., ge=0.0)
 
 
-@router.post("/accounts", status_code=status.HTTP_201_CREATED)
+@router.post("/accounts", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_director)])
 def create_account(
     req: CreateAccountRequest,
     service: BudgetService = Depends(get_budget_service)
@@ -36,7 +36,7 @@ def create_account(
     return service.create_account(req.account_id, req.balance).to_dict()
 
 
-@router.post("/reserve", status_code=status.HTTP_201_CREATED)
+@router.post("/reserve", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_director)])
 def create_reservation(
     req: CreateReservationRequest,
     service: BudgetService = Depends(get_budget_service)
@@ -54,7 +54,7 @@ def create_reservation(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
-@router.post("/consume")
+@router.post("/consume", dependencies=[Depends(require_director)])
 def consume_reservation(
     req: ActionReservationRequest,
     service: BudgetService = Depends(get_budget_service)
@@ -64,7 +64,7 @@ def consume_reservation(
     return {"status": "consumed", "reservation_id": req.reservation_id}
 
 
-@router.post("/release")
+@router.post("/release", dependencies=[Depends(require_director)])
 def release_reservation(
     req: ActionReservationRequest,
     service: BudgetService = Depends(get_budget_service)

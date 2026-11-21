@@ -10,12 +10,12 @@ from ai_os_core.api.schemas.common import (
 )
 from ai_os_core.domain.goals import GoalStatus
 from ai_os_core.application.goals_service import GoalsService
-from ai_os_core.api.dependencies import get_goals_service
+from ai_os_core.api.dependencies import get_goals_service, require_director
 
 router = APIRouter(prefix="/api/v1", tags=["Goals & Objectives"])
 
 
-@router.post("/goals", status_code=status.HTTP_201_CREATED)
+@router.post("/goals", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_director)])
 def create_goal(req: CreateGoalRequest, service: GoalsService = Depends(get_goals_service)):
     """Crea una nueva meta canónica."""
     goal = service.create_goal(
@@ -53,7 +53,7 @@ def get_goal(goal_id: str, service: GoalsService = Depends(get_goals_service)):
     return goal.to_dict()
 
 
-@router.patch("/goals/{goal_id}/status")
+@router.patch("/goals/{goal_id}/status", dependencies=[Depends(require_director)])
 def update_goal_status(
     goal_id: str,
     req: UpdateGoalStatusRequest,
@@ -87,7 +87,7 @@ def get_goal_audit(goal_id: str, service: GoalsService = Depends(get_goals_servi
     return [r.to_dict() for r in service.list_audit_records(goal_id)]
 
 
-@router.post("/objectives", status_code=status.HTTP_201_CREATED)
+@router.post("/objectives", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_director)])
 def create_objective(req: CreateObjectiveRequest, service: GoalsService = Depends(get_goals_service)):
     """Crea un objetivo secundario asociado a un Goal."""
     try:
@@ -111,7 +111,7 @@ def get_objective(objective_id: str, service: GoalsService = Depends(get_goals_s
     return obj.to_dict()
 
 
-@router.patch("/objectives/{objective_id}/status")
+@router.patch("/objectives/{objective_id}/status", dependencies=[Depends(require_director)])
 def update_objective_status(
     objective_id: str,
     req: UpdateGoalStatusRequest,

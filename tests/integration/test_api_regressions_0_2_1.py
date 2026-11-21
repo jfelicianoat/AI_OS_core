@@ -8,6 +8,7 @@ con una decisión de política escrita por el propio cliente.
 Comentarios en español.
 """
 
+import runpy, pathlib; runpy.run_path(str(pathlib.Path(__file__).resolve().parents[1] / "__init__.py"))  # aislamiento (ver tests/__init__.py), se lance como se lance
 import time
 import unittest
 import uuid
@@ -66,12 +67,13 @@ class TestApiRegressions021(unittest.TestCase):
                 self.assertEqual(c.post("/api/v1/policies/evaluate", json=ev, headers=chaty).status_code, 403)
                 self.assertEqual(c.post("/api/v1/policies/evaluate", json={**ev, "principal_id": "chatygpt"}, headers=chaty).status_code, 200)
                 # La misma clave de idempotencia de dos apps son dos operaciones distintas
+                # (0.4.6: con una ruta que las apps pueden usar; crear metas es del director)
                 h = {"Idempotency-Key": _uid("k")}
-                a = c.post("/api/v1/goals", json={"title": "a", "description": "d"}, headers={**h, **chaty})
-                b = c.post("/api/v1/goals", json={"title": "b", "description": "d"},
+                a = c.post("/api/v1/context/packages", json={"principal_id": "chatygpt"}, headers={**h, **chaty})
+                b = c.post("/api/v1/context/packages", json={"principal_id": "athena"},
                            headers={**h, "Authorization": "Bearer tok-athena-456"})
                 self.assertEqual((a.status_code, b.status_code), (201, 201), b.text)
-                self.assertNotEqual(a.json()["id"], b.json()["id"])
+                self.assertNotEqual(a.json()["package_id"], b.json()["package_id"])
                 # Tampoco puede certificar ni producir eventos en nombre de otra
                 cert = {"model_id": _uid("m"), "capability_id": "c", "version": "1",
                         "evaluation_verdict": "CERTIFIED", "is_applicable": True}
@@ -87,7 +89,7 @@ class TestApiRegressions021(unittest.TestCase):
 
     def test_token_limits_scopes_and_clearance(self):
         import os
-        os.environ["AI_OS_API_TOKENS"] = "gti=tok-gti-1|planner:propose|INTERNAL;athena=tok-ath-2;lab=tok-lab-3|context:build|INTERNAL"
+        os.environ["AI_OS_API_TOKENS"] = "gti=tok-gti-1|planner:propose|INTERNAL;athena=tok-ath-2;lab=tok-lab-3|context:build|INTERNAL;director=tok-dir-0"
         try:
             with TestClient(create_app(), raise_server_exceptions=False) as c:
                 gti = {"Authorization": "Bearer tok-gti-1"}
@@ -97,7 +99,8 @@ class TestApiRegressions021(unittest.TestCase):
                 self.assertEqual(c.post("/api/v1/context/packages", json={**pkg, "principal_scopes": ["planner:propose"]},
                                         headers=gti).status_code, 403)  # 403 del propio Core: falta context:build
                 gid = _uid("goal")
-                c.post("/api/v1/goals", json={"title": "g", "description": "d", "goal_id": gid}, headers=gti)
+                # Las metas las crea el director (0.4.6); la app propone el plan
+                c.post("/api/v1/goals", json={"title": "g", "description": "d", "goal_id": gid}, headers={"Authorization": "Bearer tok-dir-0"})
                 plan = {"goal_id": gid, "principal_id": "gti",
                         "tasks": [{"task_id": "t", "title": "t", "description": "d", "assigned_service": "x"}]}
                 self.assertEqual(c.post("/api/v1/planner/proposals", json=plan, headers=gti).status_code, 201)

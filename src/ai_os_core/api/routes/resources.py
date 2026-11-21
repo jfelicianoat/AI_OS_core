@@ -3,7 +3,7 @@ Comentarios en español.
 """
 
 from typing import Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from ai_os_core.domain.resources import ResourceNode, ResourceRelation
 from ai_os_core.domain.contracts import IdentityBinding
@@ -74,11 +74,17 @@ def get_resource(resource_id: str, service: ResourceService = Depends(get_resour
 
 
 @router.post("/resources/relations", status_code=status.HTTP_201_CREATED)
-def add_relation(req: RelationRequest, service: ResourceService = Depends(get_resource_service)):
+def add_relation(req: RelationRequest, request: Request, service: ResourceService = Depends(get_resource_service)):
     """Añade una relación dirigida entre dos recursos existentes (repetirla no la duplica)."""
     for rid in (req.source_id, req.target_id):
         if not service.get_resource(rid):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Recurso '{rid}' no encontrado.")
+    grant = getattr(request.state, "token_grant", None)
+    owner = service.get_resource(req.source_id).owner_service
+    if grant is not None and grant.principal and owner != grant.principal:
+        # Las relaciones salientes de un recurso las decide su dueño (o el director)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"'{req.source_id}' es de '{owner}': '{grant.principal}' no puede relacionarlo.")
     rel = ResourceRelation(source_id=req.source_id, target_id=req.target_id, relation_type=req.relation_type)
     return service.add_relation(rel).to_dict()
 

@@ -6,6 +6,7 @@ fallaban en abierto (fail-open) y huecos del validador SSRF.
 Comentarios en español.
 """
 
+import runpy, pathlib; runpy.run_path(str(pathlib.Path(__file__).resolve().parents[1] / "__init__.py"))  # aislamiento (ver tests/__init__.py), se lance como se lance
 import threading
 import time
 import unittest

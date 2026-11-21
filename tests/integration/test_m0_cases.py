@@ -3,6 +3,7 @@ Cubre C01, C02, C03, C05, C06, C07, C15, C23, C24, M0-REG, M0-GOALS, M0-GRAPH, M
 Comentarios en español.
 """
 
+import runpy, pathlib; runpy.run_path(str(pathlib.Path(__file__).resolve().parents[1] / "__init__.py"))  # aislamiento (ver tests/__init__.py), se lance como se lance
 import unittest
 import hashlib
 

@@ -83,12 +83,8 @@ cls
 echo =====================================================================
 echo  Ejecutando Suite de Pruebas de AI OS Core
 echo =====================================================================
-python -m pytest -v
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo Pytest no disponible o con fallos. Intentando con unittest...
-    python -m unittest discover -s tests -v
-)
+rem Los tests usan una base y una carpeta de conexion temporales: nunca las reales
+python -m pytest -q
 echo.
 if not "%~1"=="" goto EXIT_SCRIPT
 pause
@@ -98,6 +94,7 @@ goto MENU
 cls
 echo =====================================================================
 echo  Aplicando Migraciones SQL Forward-Only en SQLite
+echo  (tambien borra los pasos del monitor con mas de AI_OS_MONITOR_RETENTION_DAYS dias, 90 por defecto)
 echo =====================================================================
 python -c "from ai_os_core.bootstrap import bootstrap_database; applied = bootstrap_database(); print('Migraciones completadas. Versiones aplicadas:', applied)"
 echo.
@@ -110,7 +107,7 @@ cls
 echo =====================================================================
 echo  Ejecutando Smoke Tests de Endpoints REST
 echo =====================================================================
-python -m unittest tests/integration/test_api_smoke.py -v
+python -m pytest -q tests/integration/test_api_smoke.py
 echo.
 if not "%~1"=="" goto EXIT_SCRIPT
 pause
@@ -121,7 +118,8 @@ cls
 echo =====================================================================
 echo  Abriendo Swagger UI en el navegador y arrancando servidor...
 echo =====================================================================
-start http://127.0.0.1:8720/docs
+rem Core abre la documentacion cuando ya contesta
+set "AI_OS_OPEN_MONITOR=docs"
 python -m ai_os_core.serve
 if not "%~1"=="" goto EXIT_SCRIPT
 pause

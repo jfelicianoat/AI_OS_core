@@ -2,6 +2,7 @@
 
 El 5-nov-2026 ComfyUI Desktop ocupaba el 8000 y Core no arrancaba sin explicar por qué.
 """
+import runpy, pathlib; runpy.run_path(str(pathlib.Path(__file__).resolve().parents[1] / "__init__.py"))  # aislamiento (ver tests/__init__.py), se lance como se lance
 import os
 import socket
 import unittest
@@ -34,3 +35,26 @@ class PuertoOcupado(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AbrirDocumentacion(unittest.TestCase):
+    """A-16 (auditoría 19-nov): `run.bat docs` abría Swagger antes de que Core contestara."""
+
+    def test_abre_docs_solo_cuando_core_contesta(self):
+        from unittest import mock
+        orden = []
+        intentos = iter([OSError("aún no"), OSError("aún no"), mock.MagicMock()])
+
+        def urlopen(url, timeout):
+            orden.append(("health", url))
+            r = next(intentos)
+            if isinstance(r, Exception):
+                raise r
+            return r
+
+        with mock.patch.object(serve.urllib.request, "urlopen", urlopen), \
+                mock.patch.object(serve.time, "sleep", lambda s: None), \
+                mock.patch.object(serve.webbrowser, "open", lambda url: orden.append(("abre", url))):
+            serve._open_monitor(8720, "docs")
+        self.assertEqual(orden[-1], ("abre", "http://127.0.0.1:8720/docs"))
+        self.assertEqual([k for k, _ in orden].count("health"), 3)

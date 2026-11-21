@@ -2,7 +2,7 @@
 Comentarios en español.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from ai_os_core.api.schemas.common import CreateApprovalRequest, CommitApprovalUseRequest
 import uuid
 from pydantic import BaseModel
@@ -16,12 +16,12 @@ from ai_os_core.infrastructure.db.repositories.approvals_repo import (
     ApprovalConflictError,
     ApprovalExecutionDeniedError
 )
-from ai_os_core.api.dependencies import get_approval_service
+from ai_os_core.api.dependencies import get_approval_service, require_director
 
 router = APIRouter(prefix="/api/v1/approvals", tags=["Approvals"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_director)])
 def create_authorization(
     req: CreateApprovalRequest,
     service: ApprovalService = Depends(get_approval_service)
@@ -42,9 +42,17 @@ def create_authorization(
 @router.post("/use")
 def commit_use(
     req: CommitApprovalUseRequest,
+    request: Request,
     service: ApprovalService = Depends(get_approval_service)
 ):
     """Compromete un uso de la autorización de forma atómica aplicando reglas C06 y C07."""
+    grant = getattr(request.state, "token_grant", None)
+    if grant is not None and grant.principal:
+        # Una app sólo consume aprobaciones de su propio ámbito (`<app>:…`): antes podía agotar las de otra
+        auth = service.approvals_repo.get_authorization(req.authorization_id)
+        if auth is not None and not auth.scope.startswith(f"{grant.principal}:"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail=f"La autorización '{req.authorization_id}' es de '{auth.scope}': '{grant.principal}' no puede consumirla.")
     use = ApprovalUse(
         use_id=req.use_id,
         authorization_id=req.authorization_id,
@@ -77,7 +85,7 @@ class RevokeApprovalRequest(BaseModel):
     reason: str = "revocada manualmente"
 
 
-@router.post("/{auth_id}/revoke")
+@router.post("/{auth_id}/revoke", dependencies=[Depends(require_director)])
 def revoke_authorization(
     auth_id: str,
     req: RevokeApprovalRequest,

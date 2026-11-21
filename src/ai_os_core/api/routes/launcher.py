@@ -27,7 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from ai_os_core.api.dependencies import get_flows_repo
+from ai_os_core.api.dependencies import get_flows_repo, require_director
 from ai_os_core.api.routes.flows import record_safely
 from ai_os_core.infrastructure.db.repositories.flows_repo import FlowsRepository
 
@@ -143,9 +143,7 @@ def statuses() -> Dict[str, Any]:
     return {"apps": result, "checked_at": datetime.now(timezone.utc).isoformat()}
 
 
-def _token_for(principal: Optional[str]) -> str:
-    from ai_os_core.app import _load_tokens  # perezoso: app importa este módulo
-    tokens = _load_tokens()
+def _token_for(tokens: Dict[str, Any], principal: Optional[str]) -> str:
     for token, grant in tokens.items():
         if principal and grant.principal == principal:
             return token
@@ -187,7 +185,7 @@ class PriorityRequest(BaseModel):
 def set_app_priority(app_id: str, body: PriorityRequest, request: Request,
                      flows: FlowsRepository = Depends(get_flows_repo)):
     """El director decide quién pasa antes en la cola del Broker (Client_API §5.1.1)."""
-    _director_only(request)
+    require_director(request)
     app = _catalog_entry(app_id)
     principal = _principal_of(app)
     if principal not in flows.broker_principals():
@@ -197,15 +195,6 @@ def set_app_priority(app_id: str, body: PriorityRequest, request: Request,
                   target=principal, summary=f"prioridad {body.priority if body.priority is not None else 'por defecto'}",
                   details={"priority": body.priority, "set_by": "monitor"})
     return {"id": app_id, "principal": principal, "priority": body.priority}
-
-
-def _director_only(request: Request) -> None:
-    """Arrancar o parar apps es cosa del director: el token de una app no gobierna a las demás."""
-    grant = getattr(request.state, "token_grant", None)
-    if grant is not None and grant.principal:
-        raise HTTPException(status_code=403, detail="Sólo el token del director (AI_OS_API_TOKEN) arranca o para apps.")
-    if grant is None and (request.client is None or request.client.host not in ("127.0.0.1", "::1", "testclient")):
-        raise HTTPException(status_code=403, detail="Sin token, sólo se arrancan o paran apps desde este mismo equipo.")
 
 
 def _catalog_entry(app_id: str) -> Dict[str, Any]:
@@ -225,7 +214,7 @@ def _kill(pids: List[int]) -> None:
 @router.post("/{app_id}/stop", status_code=202)
 async def stop_app(app_id: str, request: Request, force: bool = Query(False),
                    flows: FlowsRepository = Depends(get_flows_repo)):
-    _director_only(request)
+    require_director(request)
     app = _catalog_entry(app_id)
     if app.get("kind") == "remote" or not _marks(app):
         raise HTTPException(status_code=400, detail=f"{app.get('name', app_id)} no se para desde aquí. {app.get('note', '')}".strip())
@@ -247,7 +236,7 @@ async def stop_app(app_id: str, request: Request, force: bool = Query(False),
 
 @router.post("/{app_id}/start", status_code=202)
 async def start_app(app_id: str, request: Request, flows: FlowsRepository = Depends(get_flows_repo)):
-    _director_only(request)
+    require_director(request)
     app = _catalog_entry(app_id)
     if app.get("kind") == "remote" or not app.get("start"):
         raise HTTPException(status_code=400, detail=f"{app.get('name', app_id)} no se arranca desde aquí. {app.get('note', '')}".strip())
@@ -257,7 +246,7 @@ async def start_app(app_id: str, request: Request, flows: FlowsRepository = Depe
     if state["blocked_by"]:
         raise HTTPException(status_code=409, detail=f"Antes hay que arrancar: {', '.join(state['blocked_by'])}.")
     core_url = str(request.base_url).rstrip("/")
-    token = _token_for(app.get("principal", app_id))
+    token = _token_for(request.app.state.tokens, app.get("principal", app_id))
     # Los tokens de Core no se heredan: cada app recibe sólo el suyo, por las
     # variables que declare su entrada del catálogo.
     env = {k: v for k, v in os.environ.items() if k not in ("AI_OS_API_TOKEN", "AI_OS_API_TOKENS")}

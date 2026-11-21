@@ -4,6 +4,7 @@ Comentarios en español.
 El arranque real se sustituye por un registro (`_spawn`): las pruebas no abren ventanas.
 """
 
+import runpy, pathlib; runpy.run_path(str(pathlib.Path(__file__).resolve().parents[1] / "__init__.py"))  # aislamiento (ver tests/__init__.py), se lance como se lance
 import json
 import os
 import tempfile

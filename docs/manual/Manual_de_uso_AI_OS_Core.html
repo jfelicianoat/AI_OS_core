@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Manual de uso · AI OS Core 0.2.1</title>
+<title>Manual de uso · AI OS Core 0.5.0</title>
 <style>
   @page { size: A4; margin: 18mm 16mm 20mm 16mm;
-    @bottom-center { content: "AI OS Core 0.2.1 · Manual de uso · página " counter(page); font: 8pt "Segoe UI", sans-serif; color: #777; } }
+    @bottom-center { content: "AI OS Core 0.5.0 · Manual de uso · página " counter(page); font: 8pt "Segoe UI", sans-serif; color: #777; } }
   :root { --ink:#1d2330; --muted:#5b6475; --accent:#1f5fa8; --accent-soft:#e8f0fa; --ok:#1d7a46; --warn:#a15c00; --bad:#b3261e; --line:#d8dde6; --code:#f4f6f9; }
   html { font-size: 10pt; }
   body { font-family: "Segoe UI", "Calibri", sans-serif; color: var(--ink); line-height: 1.5; margin: 0; background: #fff; }
@@ -54,9 +54,9 @@
   <h1>AI OS Core</h1>
   <div class="sub">Manual de uso del plano de control: qué es, para qué sirve, cómo se arranca y todos los flujos que ofrece su API, con ejemplos listos para copiar.</div>
   <div class="meta">
-    Versión del software: <b>0.2.1</b> · Fecha: 18 de octubre de 2026<br>
-    Verificado contra: AI Broker (contrato 2.11) en el PC IA, tablero de Agora, servicio de Athena, datos de Model_Drift y de Gestión Tareas IA<br>
-    Suite automática: 67 pruebas en verde · Recorridos E2E reales: 31 (Broker + Agora), 33 (Model_Drift + Athena + Gestión Tareas IA) y 18 (ChatyGPT + Knowledge Orchestrator + Trading AI + Local AI Lab)
+    Versión del software: <b>0.5.0</b> · Fecha: 21 de noviembre de 2026 (tokens de cliente del Broker)<br>
+    Verificado contra: AI Broker (contrato 2.12) en el PC IA, tablero de Agora, servicio de Athena, datos de Model_Drift y de Gestión Tareas IA<br>
+    Suite automática: 132 pruebas en verde · Recorridos E2E reales: 31 (Broker + Agora), 33 (Model_Drift + Athena + Gestión Tareas IA) y 18 (ChatyGPT + Knowledge Orchestrator + Trading AI + Local AI Lab)
   </div>
 </section>
 
@@ -91,7 +91,7 @@
 </section>
 
 <h2 class="newpage">1. Qué es AI OS Core y para qué sirve</h2>
-<p><b>AI OS Core</b> es el <b>plano de control</b> de la plataforma AI OS: un servicio REST local (FastAPI + SQLite) que no ejecuta modelos ni agentes, sino que <b>decide, registra y vigila</b> lo que hacen los demás componentes del ecosistema del TFM: AI Broker, Model Drift, Athena, Agora, Gestión Tareas IA, Knowledge Orchestrator y ChatyGPT.</p>
+<p><b>AI OS Core</b> es el <b>plano de control</b> de la plataforma AI OS: un servicio REST local (FastAPI + SQLite) que no ejecuta modelos ni agentes, sino que <b>decide, registra y vigila</b> lo que hacen los demás componentes del ecosistema del TFM: AI Broker, Model Drift, Athena, Agora, Gestión Tareas IA, Knowledge Orchestrator, ChatyGPT, Local AI Lab, Trading AI y Gestión Favoritos. Además enseña en un <b>monitor</b> qué pasa entre ellas y deja arrancarlas y pararlas (§3).</p>
 <p>Su papel se resume en cinco verbos:</p>
 <ul>
   <li><b>Orientar</b>: es la autoridad canónica de las <i>metas</i> (Goals) y sus <i>objetivos</i>.</li>
@@ -137,11 +137,11 @@ python -m pip install -e ".[dev]"</pre>
 <p>Doble clic en <code>start.bat</code> (o <code>run.bat</code>) abre un menú. Cada opción también acepta un argumento para usarse sin menú:</p>
 <table>
   <tr><th>Opción</th><th>Argumento</th><th>Qué hace</th></tr>
-  <tr><td>1</td><td><code>app</code> / <code>api</code></td><td>Arranca el servicio en <code>http://127.0.0.1:8000</code> con recarga automática</td></tr>
-  <tr><td>2</td><td><code>tests</code></td><td>Ejecuta la suite completa con pytest (si falla, reintenta con unittest)</td></tr>
+  <tr><td>1</td><td><code>app</code> / <code>api</code></td><td>Arranca el servicio en <code>http://127.0.0.1:8720</code> y abre el monitor ya con el token del director (lo mismo que <code>Arrancar AI OS Core.bat</code>)</td></tr>
+  <tr><td>2</td><td><code>tests</code></td><td>Ejecuta la suite completa con pytest, siempre en una base y una carpeta de conexión temporales</td></tr>
   <tr><td>3</td><td><code>migrate</code></td><td>Aplica migraciones pendientes a la base real y lista las versiones aplicadas</td></tr>
   <tr><td>4</td><td><code>smoke</code></td><td>Pruebas de humo de los endpoints básicos (en una base temporal)</td></tr>
-  <tr><td>5</td><td><code>docs</code></td><td>Abre Swagger UI en el navegador y arranca el servicio</td></tr>
+  <tr><td>5</td><td><code>docs</code></td><td>Arranca el servicio y abre Swagger UI cuando ya contesta</td></tr>
   <tr><td>6</td><td><code>exit</code></td><td>Sale</td></tr>
 </table>
 <pre>run.bat app        :: servicio
@@ -150,9 +150,19 @@ run.bat migrate    :: "Migraciones completadas. Versiones aplicadas: []" si ya e
 
 <h3>A mano</h3>
 <pre>set PYTHONPATH=D:\Desarrollo\Proyectos TFM\AI_OS_core\src
-python -m uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8000</pre>
-<p>Al arrancar, Core crea la carpeta de datos si no existe y aplica las migraciones antes de aceptar peticiones. La documentación interactiva queda en <code>http://127.0.0.1:8000/docs</code> (Swagger) y <code>/redoc</code>.</p>
+python -m ai_os_core.serve</pre>
+<p><code>serve</code> escucha siempre en <code>http://127.0.0.1:8720</code> (<code>AI_OS_PORT</code> lo cambia). Si <code>AI_OS_HOST</code> es otra dirección (lo deja <code>Abrir Core a la red.bat</code> para el runner del PC IA), abre además <b>HTTPS</b> en el 8443 con el certificado del tablero de Agora (<code>AI_OS_TLS_CERT</code>/<code>AI_OS_TLS_KEY</code>); sin certificado se niega a arrancar: por la red nunca viaja un token en claro. Si el puerto está ocupado, dice qué programa lo tiene. <code>scripts/run_local.ps1</code> hace lo mismo.</p>
+<p>Al arrancar, Core crea la carpeta de datos si no existe y aplica las migraciones antes de aceptar peticiones. La documentación interactiva queda en <code>http://127.0.0.1:8720/docs</code> (Swagger) y <code>/redoc</code>.</p>
 <div class="note"><b>¿Dónde están mis datos?</b><code>%LOCALAPPDATA%\AIOSCore\data\ai_os_core.db</code> (más los ficheros <code>-wal</code> y <code>-shm</code>). Para trabajar con otra base, define <code>AI_OS_DB_PATH</code> antes de arrancar. Para copiar la base con el servicio en marcha, detenlo primero o copia los tres ficheros juntos.</div>
+
+<h3>Tokens sin pegar</h3>
+<p>Al arrancar, Core genera (una sola vez) un token para el <b>director</b> y otro para cada app, y los deja con su URL en <code>%LOCALAPPDATA%\AIOSCore\conexion\&lt;app&gt;.json</code>. Las apps de este equipo los leen de ahí; no hay que pegar nada. Un token fijado en <code>AI_OS_API_TOKEN</code> (director) o <code>AI_OS_API_TOKENS</code> manda sobre el generado. Una app nueva sólo necesita su entrada en <code>config/apps.json</code>. Si borras el fichero de una app, Core lo repone al reiniciarse. El token del AI Broker lo publica el runner de Agora y Core lo reparte a las apps que tienen política <code>&lt;app&gt;:broker</code>; se guarda sólo en memoria.</p>
+<p><b>Tokens de cliente del Broker</b> (desde 0.5.0): una app no recibe ese token de administración, sino <b>el suyo de cliente</b> (contrato 2.12, §3.2), que Core emite en el Broker con el nombre de la app la primera vez que lo pide. Solo abre las rutas de trabajo y solo sobre lo que creó esa app, y <b>no caduca cuando el Broker se reinicia</b>. Core lo guarda en <code>%LOCALAPPDATA%\AIOSCore\data\broker_client_tokens.json</code>, comprueba con <code>auth/check</code> que sigue valiendo antes de entregarlo y emite otro si el operador lo revocó. El runner de Agora y el director siguen con el de administración. La respuesta lleva <code>scope</code> (<code>client</code> o <code>admin</code>). Si Core no puede emitir (Broker antiguo, sin red, o <code>AI_OS_BROKER_URL=off</code>), entrega el de administración como antes. La URL del Broker sale de la entrada <code>ai_broker</code> de <code>config/apps.json</code>.</p>
+
+<h3>El monitor y el lanzador</h3>
+<p><code>http://127.0.0.1:8720/monitor</code> enseña en vivo el ecosistema: la constelación de apps alrededor de Core, el relato de cada petición («Qué está pasando») y, al pulsar una, su recorrido completo con la política aplicada, la clasificación del dato, el modelo, los tiempos y el recibo. Un flujo con más de 300 pasos se dibuja sólo en su tramo final, avisándolo. Si la página pide un token, usa el del director (<code>conexion\director.json</code>); el de una app sirve para mirar, no para arrancar, parar ni cambiar turnos.</p>
+<p>La pestaña <b>Aplicaciones</b> dice qué apps están en marcha y deja arrancarlas o pararlas respetando sus dependencias (una app que necesita a otra no arranca hasta que esa otra responde; parar una que otras usan pide confirmación). Ahí se fija también el <b>turno en el Broker</b> de cada app: Urgente (10), Normal (100) o De fondo (500). Las pestañas se cambian también con las flechas del teclado.</p>
+<p>Los pasos del monitor se guardan 90 días (<code>AI_OS_MONITOR_RETENTION_DAYS</code>; 0 = siempre). Recibos, trazas de decisión y eventos no caducan.</p>
 
 <h2 class="newpage">4. Convenciones de la API</h2>
 <ul>
@@ -165,18 +175,19 @@ python -m uvicorn ai_os_core.app:app --host 127.0.0.1 --port 8000</pre>
 <p>Si arrancas Core con la variable <code>AI_OS_API_TOKEN</code>, toda la API exige la cabecera <code>Authorization: Bearer &lt;token&gt;</code>; sin ella o con otro valor responde <b>401</b>. <code>/health</code>, <code>/ready</code> y la documentación (<code>/docs</code>, <code>/redoc</code>, <code>/openapi.json</code>) siguen públicas para que un lanzador sepa si hay algo escuchando. Sin la variable, la API queda abierta como en 0.2.0. Una petición rechazada por token no llega a reservar su clave de idempotencia.</p>
 <p><b>Un token por app</b>: con <code>AI_OS_API_TOKENS="chatygpt=token1;athena=token2"</code> cada token identifica a su app. Si esa app declara ser otra, en la cabecera <code>X-Principal-Id</code> o en el campo <code>principal_id</code> del cuerpo, Core responde <b>403</b> <code>PrincipalMismatch</code>; si no declara nada, Core usa el nombre del token, también para separar las claves de idempotencia. Puede convivir con <code>AI_OS_API_TOKEN</code>.</p>
 <p><b>Permisos por token</b>: <code>gestion_tareas=token|planner:propose|INTERNAL</code> limita además qué scopes puede declarar esa app (en el planificador y en los paquetes de contexto, también los que se ponen por defecto) y hasta qué nivel de clasificación. Pedir más → <b>403</b>. Si el nivel está mal escrito, Core no arranca.</p>
+<p><b>Administrar es cosa del director</b> (desde 0.4.6): crear o cambiar políticas, conceder o revocar aprobaciones, registrar servicios y capacidades, crear o cambiar metas y objetivos, todo el presupuesto (cuentas, reservar, consumir, liberar) y arrancar, parar o cambiar el turno de las apps exige el token del director; el de una app recibe <b>403</b>. Sin tokens configurados, sólo desde este equipo. Una app sólo consume aprobaciones de su ámbito (<code>&lt;app&gt;:…</code>) y sólo relaciona recursos suyos. Lo que hacen las apps (evaluar políticas, recibos, saltos del monitor, certificaciones, eventos, recursos propios, paquetes de contexto, propuestas de plan) no cambia. Una entrada <code>director=…</code> en <code>AI_OS_API_TOKENS</code> cuenta como director. Con token de app, <code>principal_id</code>, <code>source_system</code>, <code>producer_id</code> y <code>owner_service</code> tienen que ser esa app.</p>
 <pre>set AI_OS_API_TOKEN=pon-aqui-un-secreto-largo
 run.bat app
-curl http://127.0.0.1:8000/api/v1/goals -H "Authorization: Bearer pon-aqui-un-secreto-largo"</pre>
+curl http://127.0.0.1:8720/api/v1/goals -H "Authorization: Bearer pon-aqui-un-secreto-largo"</pre>
 <h3>Códigos de estado</h3>
 <table>
   <tr><th>Código</th><th>Significado en Core</th></tr>
   <tr><td>200 / 201</td><td>Lectura correcta / recurso creado</td></tr>
   <tr><td>400</td><td>Valor inválido: estado, fecha, operador, nivel, URL bloqueada por SSRF, referencia a un padre inexistente, entero que no cabe en 64 bits, decisión ALLOW no emitida por Core</td></tr>
   <tr><td>401</td><td>Falta el token de Core o no es válido (sólo con <code>AI_OS_API_TOKEN</code> definido)</td></tr>
-  <tr><td>403</td><td>Token de una app que declara ser otra (<code>PrincipalMismatch</code>). Denegado: aprobación caducada, revocada, agotada o de otro digest; principal sin scope o sin clearance suficiente</td></tr>
+  <tr><td>403</td><td>Token de una app que declara ser otra (<code>PrincipalMismatch</code>) o que intenta administrar Core. Denegado: aprobación caducada, revocada, agotada o de otro digest; principal sin scope o sin clearance suficiente</td></tr>
   <tr><td>404</td><td>No existe lo que pides</td></tr>
-  <tr><td>409</td><td>Choca con lo ya registrado: id repetido, revisión obsoleta, saldo insuficiente, reserva ya consumida, clave de idempotencia reutilizada o en curso, recibo que retrocede, dato de otro propietario, <code>event_id</code> reutilizado con otro contenido</td></tr>
+  <tr><td>409</td><td>Choca con lo ya registrado: id repetido, revisión obsoleta, saldo insuficiente, reserva ya consumida, clave de idempotencia reutilizada o en curso, recibo que retrocede, dato de otro propietario, <code>event_id</code> reutilizado con otro contenido; política que cambia de ámbito o de clave, que vuelve a una revisión anterior o que duplica otra habilitada con la misma clave y ámbito</td></tr>
   <tr><td>422</td><td>Falta un campo obligatorio o tiene el tipo equivocado (validación del esquema)</td></tr>
 </table>
 <h3>Formato de error</h3>
@@ -189,18 +200,18 @@ curl http://127.0.0.1:8000/api/v1/goals -H "Authorization: Bearer pon-aqui-un-se
 
 <h2>5. Flujo: comprobar que el servicio está vivo</h2>
 <p><span class="pill get">GET</span> <code>/health</code> responde siempre que el proceso viva; <span class="pill get">GET</span> <code>/ready</code> además abre la base y devuelve la versión de esquema (503 si no puede).</p>
-<pre>curl http://127.0.0.1:8000/health
-{"status":"healthy","service":"ai_os_core","version":"0.2.1"}
+<pre>curl http://127.0.0.1:8720/health
+{"status":"healthy","service":"ai_os_core","version":"0.5.0"}
 
-curl http://127.0.0.1:8000/ready
-{"status":"ready","service":"ai_os_core","schema_version":2}</pre>
+curl http://127.0.0.1:8720/ready
+{"status":"ready","service":"ai_os_core","schema_version":7}</pre>
 
 <h2 class="newpage">6. Flujo: metas, objetivos y auditoría</h2>
 <p>Una <b>meta</b> (Goal) es el “para qué” de alto nivel; los <b>objetivos</b> la descomponen. Toda tarea o plan del ecosistema debería poder colgarse de una meta. Cada cambio de estado incrementa la <code>revision</code> y queda auditado.</p>
 <p>Estados válidos: <code>pending</code>, <code>active</code> (inicial), <code>paused</code>, <code>completed</code>, <code>failed</code>, <code>cancelled</code>.</p>
 <ol class="flow">
   <li><b>Crear la meta</b> <span class="pill post">POST</span> <code>/api/v1/goals</code>
-<pre>curl -X POST http://127.0.0.1:8000/api/v1/goals -H "Content-Type: application/json" -d "{\"goal_id\":\"goal_tfm\",\"title\":\"Entregar el TFM\",\"description\":\"Memoria y defensa\",\"owner_service\":\"gestion_tareas\"}"</pre>
+<pre>curl -X POST http://127.0.0.1:8720/api/v1/goals -H "Content-Type: application/json" -d "{\"goal_id\":\"goal_tfm\",\"title\":\"Entregar el TFM\",\"description\":\"Memoria y defensa\",\"owner_service\":\"gestion_tareas\"}"</pre>
   Campos: <code>title</code> y <code>description</code> obligatorios; <code>goal_id</code>, <code>owner_service</code> (por defecto <code>ai_os_core</code>) y <code>parent_goal_id</code> opcionales. Repetir un <code>goal_id</code> existente da <b>409</b> (nunca sobrescribe); un padre inexistente da <b>400</b>.</li>
   <li><b>Añadir objetivos</b> <span class="pill post">POST</span> <code>/api/v1/objectives</code> con <code>{"goal_id":"goal_tfm","title":"Redactar capítulo 3"}</code>.</li>
   <li><b>Consultar</b>: <span class="pill get">GET</span> <code>/api/v1/goals/{id}</code>, <span class="pill get">GET</span> <code>/api/v1/goals?limit=50&amp;offset=0</code>, <span class="pill get">GET</span> <code>/api/v1/goals/{id}/objectives</code>, <span class="pill get">GET</span> <code>/api/v1/objectives/{id}</code>.</li>
@@ -265,7 +276,7 @@ curl http://127.0.0.1:8000/ready
 { "policy_id": "pol_base", "policy_key": "auditar_siempre", "scope": "broker:invoke",
   "decision_if_matched": "ALLOW", "unconditional": true,
   "obligations": ["audit_trace"], "constraints": { "max_output_tokens": 600 } }</pre>
-  Reenviar el mismo <code>policy_id</code> la actualiza. <code>enabled: false</code> la desactiva sin borrarla.</li>
+  Sólo con el token del director. Crear responde <b>201</b> <code>created</code>; reenviar el mismo <code>policy_id</code> la actualiza (<b>200</b> <code>updated</code>), con tres reglas (spec 0.6.1 §3.3): no puede cambiar de <code>scope</code> ni de <code>policy_key</code>, la <code>revision</code> no puede bajar, con la misma revisión sólo se puede habilitar o deshabilitar (cualquier otro cambio pide subirla) y sólo puede haber una política habilitada por <code>(policy_key, scope)</code>; si no, <b>409</b>. Si una base anterior trae gemelas, Core lo avisa al arrancar. <code>enabled: false</code> la desactiva sin borrarla.</li>
   <li><b>Evaluar</b> <span class="pill post">POST</span> <code>/api/v1/policies/evaluate</code>
 <pre>{ "scope": "broker:invoke", "principal_id": "chatygpt",
   "context": { "data_classification": "internal", "estimated_cost": 0.5 } }
@@ -426,7 +437,7 @@ curl http://127.0.0.1:8000/ready
   <li>Misma clave mientras la primera petición aún se procesa → <b>409</b> <code>IdempotencyInProgress</code> con <code>Retry-After: 1</code>.</li>
   <li>Si la operación falla con error 5xx, la clave se libera y puede reintentarse. Las respuestas 4xx sí quedan registradas.</li>
 </ul>
-<pre>curl -X POST http://127.0.0.1:8000/api/v1/goals -H "Content-Type: application/json" ^
+<pre>curl -X POST http://127.0.0.1:8720/api/v1/goals -H "Content-Type: application/json" ^
      -H "X-Idempotency-Key: alta-meta-tfm" -H "X-Principal-Id: gestion_tareas" ^
      -d "{\"title\":\"Entregar el TFM\",\"description\":\"…\"}"</pre>
 
@@ -480,12 +491,18 @@ curl http://127.0.0.1:8000/ready
   <tr><td><code>AI_OS_API_TOKENS</code></td><td>(vacío)</td><td>Un token por app: <code>app=token;otra=token2</code>. Fija el principal de cada llamada</td></tr>
   <tr><td><code>AI_OS_ALLOWED_HOSTS</code></td><td>(vacío)</td><td>Hosts DNS extra admitidos en el registro, separados por comas</td></tr>
   <tr><td><code>AI_OS_ALLOW_PRIVATE_NETS</code></td><td><code>true</code></td><td>Admitir IPs de redes privadas al registrar servicios</td></tr>
-  <tr><td><code>AI_OS_ENV</code>, <code>AI_OS_HOST</code>, <code>AI_OS_PORT</code></td><td><code>development</code>, <code>127.0.0.1</code>, <code>8000</code></td><td>Informativas; el puerto real lo fija uvicorn</td></tr>
+  <tr><td><code>AI_OS_PORT</code></td><td><code>8720</code></td><td>Puerto HTTP de este equipo</td></tr>
+  <tr><td><code>AI_OS_HOST</code></td><td><code>127.0.0.1</code></td><td>Otra dirección abre además HTTPS a la red en <code>AI_OS_TLS_PORT</code> (8443) con <code>AI_OS_TLS_CERT</code>/<code>AI_OS_TLS_KEY</code> (por defecto los del tablero de Agora en <code>C:\Agora\pki</code>)</td></tr>
+  <tr><td><code>AI_OS_AUTO_TOKENS</code>, <code>AI_OS_CONNECT_DIR</code></td><td><code>true</code>, <code>%LOCALAPPDATA%\AIOSCore\conexion</code></td><td>Generar tokens por app y dónde dejar los ficheros de conexión</td></tr>
+  <tr><td><code>AI_OS_APPS_FILE</code></td><td><code>config/apps.json</code></td><td>Catálogo del lanzador</td></tr>
+  <tr><td><code>AI_OS_MONITOR_RETENTION_DAYS</code></td><td><code>90</code></td><td>Días que se guardan los pasos del monitor (0 = siempre)</td></tr>
+  <tr><td><code>AI_OS_MONITOR_POLL_S</code>, <code>AI_OS_MONITOR_MAX_S</code></td><td><code>0.5</code>, <code>30</code></td><td>Sondeo y duración de cada conexión en vivo del monitor (la página reconecta sola)</td></tr>
+  <tr><td><code>AI_OS_OPEN_MONITOR</code></td><td>(vacío)</td><td><code>1</code>: abrir el monitor al arrancar; <code>docs</code>: abrir Swagger</td></tr>
 </table>
 
 <h2 class="newpage">20. Pruebas y verificación</h2>
 <pre>run.bat tests                         :: o bien
-python -m pytest -q                   :: 67 pruebas
+python -m pytest -q                   :: 126 pruebas
 python -m pytest tests/integration/test_api_regressions.py -v</pre>
 <table>
   <tr><th>Fichero</th><th>Cubre</th></tr>
@@ -495,9 +512,10 @@ python -m pytest tests/integration/test_api_regressions.py -v</pre>
   <tr><td><code>tests/integration/test_p02_p15_advanced.py</code></td><td>C09, C12, C21, C22, certificaciones, planner</td></tr>
   <tr><td><code>tests/integration/test_api_smoke.py</code></td><td>Arranque, <code>/ready</code> y CRUD básico por HTTP</td></tr>
   <tr><td><code>tests/integration/test_api_regressions.py</code></td><td>Carreras reales de C01, C07 y C09 (peticiones simultáneas), duplicados, fail-open, SSRF y las rutas nuevas de 0.2.0</td></tr>
+  <tr><td><code>tests/integration/test_auditoria_2026_11_19.py</code> y <code>tests/unit/test_aislamiento_tests.py</code></td><td>Auditoría 0.4.6: administración sólo del director, reglas de revisión de políticas, dueño de recursos, tokens leídos una vez, retención del monitor y que los tests nunca toquen el perfil real</td></tr>
   <tr><td><code>tests/integration/test_api_regressions_0_2_1.py</code></td><td>Revisión 0.2.1: enteros fuera de rango, recibos que retroceden, caducidad en lecturas, reanudación tras REPLAY_GAP, epoch anterior, <code>event_id</code> divergente, propietario de certificaciones y ALLOW falsificado en el planificador, token opcional, tokens por app con permisos y certificaciones con barras en el modelo</td></tr>
 </table>
-<p>Los tests usan siempre una base temporal (<code>tests/__init__.py</code>); no tocan la base real. Las pruebas de carrera se validaron quitando el arreglo: sin él, fallan. Las de 0.2.1 se validaron igual, una a una contra el código anterior.</p>
+<p>Los tests usan siempre una base y una carpeta de conexión temporales y quitan del entorno los tokens del usuario (<code>tests/__init__.py</code>, también con <code>python -m unittest discover -s tests</code> desde 0.4.6); no tocan la base real. Las pruebas de carrera se validaron quitando el arreglo: sin él, fallan. Las de 0.2.1 se validaron igual, una a una contra el código anterior.</p>
 
 <h2>21. Errores frecuentes y cómo resolverlos</h2>
 <table>
@@ -511,14 +529,16 @@ python -m pytest tests/integration/test_api_regressions.py -v</pre>
   <tr><td>Un evento no cambia la versión canónica</td><td>No es <code>full_state</code>, es de revisión menor, de un epoch anterior o espera en cuarentena a que llegue una secuencia que falta</td><td><code>GET /events/quarantine</code> y <code>/events/gaps</code>; reenviar la secuencia perdida</td></tr>
   <tr><td>400 al proponer un plan con ALLOW</td><td>La <code>policy_decision</code> no viene de <code>/policies/evaluate</code> o se modificó</td><td>Pasar la respuesta de la evaluación tal cual, con su <code>trace_id</code></td></tr>
   <tr><td>409 al registrar un recibo</td><td>El estado retrocede, ya era terminal o lo envía otro receptor</td><td><code>POST /operations/status</code> para ver el recibo vigente</td></tr>
-  <tr><td>El servicio no arranca: puerto ocupado</td><td>Ya hay otra instancia en el 8000</td><td>Cerrarla o arrancar con <code>--port 8010</code></td></tr>
+  <tr><td>El servicio no arranca: puerto ocupado</td><td>Otra instancia u otro programa (ComfyUI cae en el 8000) en el 8720; Core dice cuál</td><td>Cerrarlo o arrancar con <code>AI_OS_PORT</code> (las apps toman el nuevo de su fichero de conexión)</td></tr>
+  <tr><td>403 «no administra Core»</td><td>Se usó el token de una app para una tarea del director</td><td>Usar el de <code>conexion\director.json</code> o <code>AI_OS_API_TOKEN</code></td></tr>
+  <tr><td>Una app recibe 401 de Core</td><td>Su fichero de conexión se cambió o se borró con Core en marcha</td><td>Reiniciar Core: vuelve a leer y reponer los ficheros</td></tr>
 </table>
 
 <h2>22. Límites conocidos</h2>
-<div class="note bad"><b>Alcance de la autenticación</b>Con tokens por app (<code>AI_OS_API_TOKENS</code>) Core sabe quién llama y no deja que una app se haga pasar por otra. Con permisos en el token (<code>app=token|scopes|NIVEL</code>) tampoco puede pedir más scopes ni más clasificación de los que tiene. Sin permisos en el token, los scopes y el clearance siguen viniendo en la petición. Con el token común (<code>AI_OS_API_TOKEN</code>) todas las apps son indistinguibles, y sin ninguna variable no hay comprobación. Escucha en <code>127.0.0.1</code>; no lo expongas en la red sin HTTPS delante.</div>
+<div class="note bad"><b>Alcance de la autenticación</b>Con tokens por app (<code>AI_OS_API_TOKENS</code>) Core sabe quién llama y no deja que una app se haga pasar por otra. Con permisos en el token (<code>app=token|scopes|NIVEL</code>) tampoco puede pedir más scopes ni más clasificación de los que tiene. Sin permisos en el token, los scopes y el clearance siguen viniendo en la petición. El token del director administra; los de las apps sólo operan en su nombre. Con <code>AI_OS_AUTO_TOKENS=false</code> y sin ninguna variable no hay comprobación (y sólo se administra desde este equipo). En la red sólo escucha por HTTPS.</div>
 <ul>
   <li>Un REPLAY_GAP se resuelve sólo cuando llega la secuencia que faltaba (Core reanuda los eventos retenidos). Si el productor la perdió de verdad, no hay todavía flujo de snapshot y nueva línea base (§6.4): la salida es abrir un <code>stream_epoch</code> nuevo.</li>
-  <li>Las respuestas 4xx con clave de idempotencia quedan registradas: si falló por una precondición (p. ej. la meta aún no existía), el reintento necesita otra clave.</li>
+  <li>Con clave de idempotencia sólo se repiten las respuestas 2xx, 400 y 422 durante 24 horas; un 401, 403, 404 o 409 se puede reintentar con la misma clave cuando cambie la situación.</li>
   <li>Las metas y objetivos admiten cualquier transición de estado (también reabrir uno <code>completed</code>); la especificación no fija su ciclo de vida.</li>
   <li>Las políticas no se borran: se desactivan con <code>enabled: false</code>. Metas, objetivos y recursos tampoco tienen borrado.</li>
   <li>La “incógnita de seguridad” (C20) se detecta por el nombre del campo (<i>security</i>, <i>auth</i>).</li>
@@ -536,7 +556,7 @@ python -m pytest tests/integration/test_api_regressions.py -v</pre>
   <tr><td>POST · GET · PATCH</td><td><code>/api/v1/objectives</code> · <code>/{id}</code> · <code>/{id}/status</code></td><td>Objetivos</td></tr>
   <tr><td>POST · GET</td><td><code>/api/v1/services</code> · <code>/{id}</code></td><td>Registro de servicios</td></tr>
   <tr><td>POST · GET</td><td><code>/api/v1/capabilities</code> · <code>/{id}</code></td><td>Capacidades</td></tr>
-  <tr><td>POST · GET</td><td><code>/api/v1/policies</code></td><td>Crear/actualizar · listar políticas</td></tr>
+  <tr><td>POST · GET</td><td><code>/api/v1/policies</code></td><td>Crear/actualizar (director) · listar políticas</td></tr>
   <tr><td>POST</td><td><code>/api/v1/policies/evaluate</code></td><td>Decisión consolidada</td></tr>
   <tr><td>POST</td><td><code>/api/v1/approvals</code> · <code>/use</code> · <code>/{id}/revoke</code></td><td>Conceder · consumir · revocar</td></tr>
   <tr><td>GET</td><td><code>/api/v1/approvals/{id}/status</code></td><td>Estado efectivo</td></tr>
@@ -551,6 +571,10 @@ python -m pytest tests/integration/test_api_regressions.py -v</pre>
   <tr><td>POST · GET</td><td><code>/api/v1/certifications</code> · <code>/{model}/{cap}/{ver}</code></td><td>Certificaciones</td></tr>
   <tr><td>POST · GET</td><td><code>/api/v1/context/packages</code> · <code>/{id}</code> · <code>/snapshots/{hash}</code></td><td>Contexto inmutable</td></tr>
   <tr><td>POST · GET</td><td><code>/api/v1/planner/proposals</code> · <code>/{id}</code> · <code>/{id}/decision</code></td><td>Planes y autonomía</td></tr>
+  <tr><td>POST · GET</td><td><code>/api/v1/flows/hops</code> · <code>/events</code> · <code>/apps</code> · <code>/stream</code> · <code>/{flow_id}</code></td><td>Monitor: saltos que informan las apps, lectura y emisión en vivo (<code>/{flow_id}?limit=N</code>: los últimos N y el <code>total</code>)</td></tr>
+  <tr><td>GET · POST · PUT</td><td><code>/api/v1/apps</code> · <code>/{id}/start</code> · <code>/{id}/stop</code> · <code>/{id}/priority</code></td><td>Lanzador y turno en el Broker (director)</td></tr>
+  <tr><td>PUT · GET</td><td><code>/api/v1/credentials/broker</code></td><td>Token del AI Broker repartido por Core (de cliente para las apps desde 0.5.0)</td></tr>
+  <tr><td>GET</td><td><code>/monitor</code></td><td>Página del monitor</td></tr>
 </table>
 
 <h2>24. Glosario</h2>

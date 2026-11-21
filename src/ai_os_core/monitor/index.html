@@ -144,6 +144,7 @@ td.mono{font-size:12px;overflow-wrap:anywhere}
 .login p{margin:0;color:var(--muted);font-size:14px}
 .login input{font:14px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
 .login .bad{color:var(--deny);font-size:13px}
+.login p .mono{overflow-wrap:anywhere}  /* la ruta de director.json no se sale del recuadro */
 
 .k-request{color:var(--req)} .k-decision{color:var(--core)} .k-allow{color:var(--allow)} .k-deny{color:var(--deny)}
 .k-response{color:var(--resp)} .k-receipt{color:var(--receipt)} .k-error{color:var(--deny)} .k-api{color:var(--api)}
@@ -158,7 +159,7 @@ td.mono{font-size:12px;overflow-wrap:anywhere}
 <header>
   <div class="brand"><span class="ico" data-icon="core"></span><div><h1>AI OS Core</h1><small id="ver">monitor del ecosistema</small></div></div>
   <span class="live" id="live"><i></i><span>conectando…</span></span>
-  <div class="stats">
+  <div class="stats" title="Peticiones vistas desde que abriste esta página (las 400 últimas al abrir y las nuevas)">
     <div class="stat"><b id="sFlows">0</b><span>peticiones</span></div>
     <div class="stat allow"><b id="sAllow">0</b><span>autorizadas</span></div>
     <div class="stat deny"><b id="sDeny">0</b><span>denegadas</span></div>
@@ -185,7 +186,7 @@ td.mono{font-size:12px;overflow-wrap:anywhere}
   <aside>
     <div class="tabs" role="tablist" aria-label="Paneles">
       <button type="button" role="tab" id="tabFeed" aria-controls="paneFeed" aria-selected="true">Qué está pasando</button>
-      <button type="button" role="tab" id="tabApps" aria-controls="paneApps" aria-selected="false">Aplicaciones <span id="appsCount" class="mono"></span></button>
+      <button type="button" role="tab" id="tabApps" aria-controls="paneApps" aria-selected="false" tabindex="-1">Aplicaciones <span id="appsCount" class="mono"></span></button>
     </div>
     <div id="paneFeed" role="tabpanel" aria-labelledby="tabFeed" class="pane">
       <p class="pane-hint">Pulsa una petición para ver su recorrido completo.</p>
@@ -210,7 +211,8 @@ td.mono{font-size:12px;overflow-wrap:anywhere}
 <div class="login" id="login" hidden>
   <form id="loginForm">
     <h2>Token de AI OS Core</h2>
-    <p>Core pide un token para enseñar los flujos. Usa el token común (<span class="mono">AI_OS_API_TOKEN</span>) o el de cualquier app. Se guarda sólo en este navegador.</p>
+    <p>Core pide un token para enseñar los flujos. Lo más cómodo es abrir el monitor con <span class="mono">Arrancar AI OS Core.bat</span>, que ya lo trae. Si no, copia el <span class="mono">"token"</span> de <span class="mono">%LOCALAPPDATA%\AIOSCore\conexion\director.json</span> (o el valor de <span class="mono">AI_OS_API_TOKEN</span>, si lo fijaste).</p>
+    <p>El token de una app también enseña los flujos, pero no arranca ni para apps ni cambia turnos. Se guarda sólo en este navegador.</p>
     <label for="tokIn" class="mono" style="font-size:12px;color:var(--muted)">Token</label>
     <input id="tokIn" type="password" autocomplete="off" required>
     <span class="bad" id="tokBad" hidden>Core no acepta ese token.</span>
@@ -393,6 +395,7 @@ async function playStep(s) {
 
 // ---------- flujos y relato ----------
 const flows = new Map();   // flow_id -> {id, steps:[], li}
+const FLOWS_MAX = 1000;     // las cifras de la cabecera cuentan estos, los de esta sesión
 const TERMINAL_OK = new Set(["succeeded"]), TERMINAL_BAD = new Set(["failed_terminal", "cancelled"]);
 
 function flowState(f) {
@@ -460,20 +463,41 @@ function ingest(s, live) {
   lastId = s.id;
   for (const id of [s.source, s.target]) if (id !== "core" && !apps.has(id)) addApp(id, BROKERS.has(id), live);
   let f = flows.get(s.flow_id);
-  if (!f) { f = {id: s.flow_id, steps: []}; flows.set(s.flow_id, f); }
+  if (!f) {
+    f = {id: s.flow_id, steps: []}; flows.set(s.flow_id, f);
+    // Con KO activo entran miles de pasos al día: se olvidan los flujos más viejos (el detalle los pide a Core)
+    while (flows.size > FLOWS_MAX) { const [oldId, old] = flows.entries().next().value; old.li?.remove(); flows.delete(oldId); }
+  }
   f.steps.push(s);
   renderFlow(f);
   if (live) animateStep(s);
-  if ($("detail").open && $("detail").dataset.flow === s.flow_id) openDetail(s.flow_id);
+  if ($("detail").open && detail?.id === s.flow_id && !detail.steps.some(x => x.id === s.id)) { detail.steps.push(s); detail.total++; renderDetail(); }
 }
 
 // ---------- detalle: secuencia C ----------
-function openDetail(flowId) {
-  const f = flows.get(flowId); if (!f) return;
+// El recorrido completo viene de Core (GET /flows/{id}): la página sólo ha visto lo que pasó desde
+// que se abrió. Un flujo enorme (KO llegó a 1 809 pasos en uno) se dibuja sólo en su tramo final.
+const DETAIL_MAX = 300;
+let detail = null;   // {id, steps} del flujo abierto
+async function openDetail(flowId) {
+  const known = flows.get(flowId);
+  let steps = known ? [...known.steps] : [], total = steps.length, partial = true;
+  try {
+    const r = await api(`/api/v1/flows/${encodeURIComponent(flowId)}?limit=${DETAIL_MAX}`);
+    steps = r.steps; total = r.total; partial = false;
+  } catch {}
+  if (!steps.length) return;
+  detail = {id: flowId, steps, total, partial};
+  renderDetail();
+}
+function renderDetail() {
+  const flowId = detail.id, f = {id: flowId, steps: detail.steps};
   const dlg = $("detail"); dlg.dataset.flow = flowId;
   const [st, label] = flowState(f);
   $("dTitle").innerHTML = `${esc(route(f))} <span class="state st-${st}" style="font-size:12px;vertical-align:middle">${label}</span>`;
-  $("dSub").textContent = "flow_id " + flowId;
+  const total = Math.max(detail.total || 0, f.steps.length), cut = total > DETAIL_MAX || f.steps.length > DETAIL_MAX;
+  $("dSub").textContent = "flow_id " + flowId + (cut ? ` · ${total} pasos: se ven los últimos ${DETAIL_MAX} (tiempos y datos, de ese tramo)` : ` · ${total} pasos`)
+    + (detail.partial ? " · Core no contesta: sólo lo que vio esta página" : "");
 
   const dec = f.steps.filter(s => s.kind === "decision"), rec = f.steps.filter(s => s.kind === "receipt");
   const resp = f.steps.filter(s => s.kind === "response");
@@ -489,17 +513,18 @@ function openDetail(flowId) {
   ].join("");
 
   // Columnas: participantes en orden de aparición, Core siempre presente
+  const shown = cut ? f.steps.slice(-DETAIL_MAX) : f.steps;
   const lanes = [];
   const push = a => { if (!lanes.includes(a)) lanes.push(a); };
-  for (const s of f.steps) { push(s.source); push(s.kind === "decision" || s.kind === "receipt" ? "core" : s.target); }
-  const W = Math.max(560, lanes.length * 170), H = 70 + f.steps.length * 46 + 20, X = a => 85 + lanes.indexOf(a) * ((W - 170) / Math.max(1, lanes.length - 1));
+  for (const s of shown) { push(s.source); push(s.kind === "decision" || s.kind === "receipt" ? "core" : s.target); }
+  const W = Math.max(560, lanes.length * 170), H = 70 + shown.length * 46 + 20, X = a => 85 + lanes.indexOf(a) * ((W - 170) / Math.max(1, lanes.length - 1));
   const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": "Diagrama de secuencia del recorrido"});
   el("defs", {}, svg).innerHTML = '<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker>';
   for (const a of lanes) {
     el("line", {class: "lifeline", x1: X(a), y1: 40, x2: X(a), y2: H - 10}, svg);
     const t = el("text", {class: "lane" + (a === "core" ? " core" : ""), x: X(a), y: 26}, svg); t.textContent = name(a);
   }
-  f.steps.forEach((s, i) => {
+  shown.forEach((s, i) => {
     const y = 70 + i * 46;
     let from = s.source, to = s.target, cls = "k-" + s.kind, label = s.summary || s.kind;
     if (s.kind === "decision") { to = "core"; const ok = s.details.authorization === "ALLOW" && s.details.executable !== false; cls = ok ? "k-allow" : "k-deny"; label = `${s.details.authorization} · ${s.details.data_classification || "sin clasificar"}`; }
@@ -514,10 +539,11 @@ function openDetail(flowId) {
   });
   $("dSeq").replaceChildren(svg);
 
-  $("dRows").innerHTML = f.steps.map(s => `<tr><td class="mono">${hhmmss(s.at)}</td><td>${sentence(s)}</td><td class="mono">${esc(JSON.stringify(s.details))}</td></tr>`).join("");
+  $("dRows").innerHTML = shown.map(s => `<tr><td class="mono">${hhmmss(s.at)}</td><td>${sentence(s)}</td><td class="mono">${esc(JSON.stringify(s.details))}</td></tr>`).join("");
   if (!dlg.open) dlg.showModal();
 }
 $("dClose").addEventListener("click", () => $("detail").close());
+$("detail").addEventListener("close", () => { detail = null; });
 $("detail").addEventListener("click", e => { if (e.target === $("detail")) $("detail").close(); });
 
 // ---------- lanzador: arrancar el ecosistema respetando dependencias ----------
@@ -569,10 +595,18 @@ async function setPriority(id, value) {
 function selectTab(which) {
   const onApps = which === "apps";
   $("tabApps").setAttribute("aria-selected", onApps); $("tabFeed").setAttribute("aria-selected", !onApps);
+  $("tabApps").tabIndex = onApps ? 0 : -1; $("tabFeed").tabIndex = onApps ? -1 : 0;
   $("paneApps").hidden = !onApps; $("paneFeed").hidden = onApps;
 }
 $("tabFeed").addEventListener("click", () => selectTab("feed"));
 $("tabApps").addEventListener("click", () => selectTab("apps"));
+// Patrón de pestañas: flechas, Inicio y Fin cambian de pestaña; sólo la activa recibe el tabulador
+document.querySelector(".tabs").addEventListener("keydown", e => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+  e.preventDefault();
+  const next = e.key === "Home" ? "feed" : e.key === "End" ? "apps" : $("tabApps").getAttribute("aria-selected") === "true" ? "feed" : "apps";
+  selectTab(next); $(next === "apps" ? "tabApps" : "tabFeed").focus();
+});
 
 function showApp(id) {
   if (!launcher.some(a => a.id === id)) return;
@@ -738,7 +772,7 @@ async function start() {
     const tail = await api("/api/v1/flows/events?limit=400");
     tail.forEach(s => ingest(s, false));
     stats();
-    if (!flows.size) $("feed").innerHTML = `<li class="empty"><span>Todavía no ha pasado nada por Core.</span><span>Cuando una app pida algo al Broker verás aquí el recorrido. Para una demostración: <code>python scripts/demo_monitor.py http://127.0.0.1:8000</code></span></li>`;
+    if (!flows.size) $("feed").innerHTML = `<li class="empty"><span>Todavía no ha pasado nada por Core.</span><span>Cuando una app pida algo al Broker verás aquí el recorrido. Para una demostración: <code>python scripts/demo_monitor.py ${esc(location.origin)}</code></span></li>`;
     stream();
     clearInterval(start.t); start.t = setInterval(() => refreshApps().catch(() => {}), 30000);
     // Al abrir Core con apps paradas, lo primero es poder arrancarlas

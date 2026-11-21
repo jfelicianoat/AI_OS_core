@@ -48,6 +48,10 @@ def _load_tokens() -> dict:
         token, _, limits = rest.partition("|")
         scopes, _, clearance = limits.partition("|")
         if sep and principal.strip() and token.strip():
+            if principal.strip() == conexion.DIRECTOR:
+                # "director=…" en AI_OS_API_TOKENS es el director, no una app que se llame así
+                tokens[token.strip()] = TokenGrant(principal=None)
+                continue
             clearance = clearance.strip() or None
             if clearance is not None:
                 ClassificationLevel(clearance)  # un nivel mal escrito impide arrancar: no se abre de más
@@ -169,6 +173,10 @@ def create_app() -> FastAPI:
     # idempotencia, así una petición sin credencial no reserva claves). Sin AI_OS_API_TOKEN ni
     # AI_OS_API_TOKENS la API queda abierta como en 0.2.0, pensada sólo para 127.0.0.1.
     tokens = _load_tokens()
+    # Los tokens se leen una vez: quien los consulte después (monitor, lanzador, serve) usa estos.
+    # Volver a provisionar en marcha regeneraba el fichero de una app borrado con un token que este
+    # proceso no acepta (auditoría 19-nov, A-06).
+    app.state.tokens = tokens
     if tokens:
         @app.middleware("http")
         async def token_middleware(request: Request, call_next):
@@ -198,8 +206,9 @@ def create_app() -> FastAPI:
                     try:
                         body = json.loads(await request.body() or b"null")
                         if isinstance(body, dict):
-                            # Quien certifica (source_system) o produce eventos (producer_id) es la app del token
-                            claims += [body.get(k) for k in ("principal_id", "source_system", "producer_id")]
+                            # Quien certifica (source_system), produce eventos (producer_id) o es dueño de
+                            # un recurso del grafo (owner_service) es la app del token
+                            claims += [body.get(k) for k in ("principal_id", "source_system", "producer_id", "owner_service")]
                     except ValueError:
                         pass  # el cuerpo ilegible lo rechaza la validación de la ruta
                 for claimed in claims:

@@ -13,12 +13,12 @@ from ai_os_core.domain.capabilities import (
     ServiceHealthStatus
 )
 from ai_os_core.application.service_registry import ServiceRegistryService
-from ai_os_core.api.dependencies import get_service_registry
+from ai_os_core.api.dependencies import get_service_registry, require_director
 
 router = APIRouter(prefix="/api/v1", tags=["Service & Capability Registry"])
 
 
-@router.post("/services", status_code=status.HTTP_201_CREATED)
+@router.post("/services", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_director)])
 def register_service(
     req: ServiceRegistrationRequest,
     registry: ServiceRegistryService = Depends(get_service_registry)
@@ -62,7 +62,7 @@ def get_service(service_id: str, registry: ServiceRegistryService = Depends(get_
     return service.to_dict()
 
 
-@router.post("/capabilities", status_code=status.HTTP_201_CREATED)
+@router.post("/capabilities", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_director)])
 def register_capability(
     req: CapabilityRegistrationRequest,
     registry: ServiceRegistryService = Depends(get_service_registry)

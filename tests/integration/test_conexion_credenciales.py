@@ -4,6 +4,7 @@ Core genera un token por app y lo deja con su URL en la carpeta de conexión; el
 Agora publica el token del AI Broker y las apps lo piden. Comentarios en español.
 """
 
+import runpy, pathlib; runpy.run_path(str(pathlib.Path(__file__).resolve().parents[1] / "__init__.py"))  # aislamiento (ver tests/__init__.py), se lance como se lance
 import json
 import os
 import tempfile

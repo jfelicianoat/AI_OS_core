@@ -5,6 +5,7 @@ Comentarios en español.
 import json
 from typing import Optional, List
 from ai_os_core.infrastructure.db.connection import DatabaseManager
+from ai_os_core.domain.errors import ConflictError
 from ai_os_core.domain.policies import (
     Policy,
     PolicyCondition,
@@ -19,8 +20,13 @@ class PoliciesRepository:
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
 
-    def save_policy(self, policy: Policy) -> None:
-        """Persiste una política asegurando integridad de sus condiciones."""
+    def save_policy(self, policy: Policy) -> bool:
+        """Persiste una política asegurando integridad de sus condiciones. True si es nueva.
+
+        Reglas (spec 0.6.1 §3.3, auditoría 19-nov): un `policy_id` no cambia de `scope` ni de
+        `policy_key` (antes se respondía «created» y no cambiaba nada); la revisión no retrocede;
+        y por `(policy_key, scope)` sólo hay una política habilitada.
+        """
         policy.validate_integrity()
         conditions_data = [
             {"field": c.field, "operator": c.operator, "value": c.value}
@@ -29,6 +35,39 @@ class PoliciesRepository:
 
         with self.db_manager.transaction() as conn:
             cursor = conn.cursor()
+            current = cursor.execute("SELECT * FROM policies WHERE policy_id = ?;", (policy.policy_id,)).fetchone()
+            if current:
+                if (current["scope"], current["policy_key"]) != (policy.scope, policy.policy_key):
+                    raise ConflictError(
+                        f"La política '{policy.policy_id}' es '{current['policy_key']}' en '{current['scope']}': "
+                        "no cambia de clave ni de ámbito; crea otra con otro policy_id."
+                    )
+                if policy.revision < current["revision"]:
+                    raise ConflictError(
+                        f"Revisión obsoleta {policy.revision} para '{policy.policy_id}' (actual {current['revision']})."
+                    )
+                if policy.revision == current["revision"]:
+                    # Con la misma revisión sólo se habilita o deshabilita: si cambiara la decisión, una traza que
+                    # cita '<id>@<rev>' pasaría a significar otra cosa (arbitraje O-3)
+                    antes = self._row_to_policy(current)
+                    contenido = lambda p: (p.decision_if_matched, p.condition_mode, p.unconditional,  # noqa: E731
+                                           [(c.field, c.operator, c.value) for c in p.conditions],
+                                           p.constraints, p.obligations)
+                    if contenido(antes) != contenido(policy):
+                        raise ConflictError(
+                            f"La política '{policy.policy_id}' cambia de contenido sin subir la revisión "
+                            f"(sigue en {current['revision']}): envía revision={current['revision'] + 1}."
+                        )
+            if policy.enabled:
+                twin = cursor.execute(
+                    "SELECT policy_id FROM policies WHERE policy_key = ? AND scope = ? AND enabled = 1 AND policy_id <> ?;",
+                    (policy.policy_key, policy.scope, policy.policy_id),
+                ).fetchone()
+                if twin:
+                    raise ConflictError(
+                        f"Ya hay una política habilitada '{policy.policy_key}' en '{policy.scope}' ({twin['policy_id']}): "
+                        "sube su revisión o deshabilítala antes."
+                    )
             cursor.execute(
                 """
                 INSERT INTO policies (
@@ -61,6 +100,7 @@ class PoliciesRepository:
                     policy.created_at
                 )
             )
+            return current is None
 
     def list_active_policies_for_scope(self, scope: str) -> List[Policy]:
         """Obtiene las políticas habilitadas aplicables a un scope determinado."""

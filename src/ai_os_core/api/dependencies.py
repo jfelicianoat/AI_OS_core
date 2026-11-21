@@ -177,6 +177,23 @@ class TokenGrant:
     clearance: Optional[str] = None           # None: sin límite de clasificación
 
 
+_LOOPBACK = ("127.0.0.1", "::1", "testclient")
+
+
+def require_director(request: Request) -> None:
+    """Administrar Core (políticas, aprobaciones, registro, cuentas, lanzador) es cosa del director.
+
+    El token de una app la identifica para operar, no para gobernar a las demás: con él, una app
+    podía crear un DENY con ámbito `*` y dejar sin Broker a todo el ecosistema (auditoría 19-nov).
+    Sin tokens configurados, sólo desde este equipo.
+    """
+    grant = getattr(request.state, "token_grant", None)
+    if grant is not None and grant.principal:
+        raise HTTPException(status_code=403, detail=f"El token de '{grant.principal}' no administra Core: hace falta el del director.")
+    if grant is None and (request.client is None or request.client.host not in _LOOPBACK):
+        raise HTTPException(status_code=403, detail="Sin token, Core sólo se administra desde este mismo equipo.")
+
+
 def enforce_token_grant(request: Request, scopes: List[str], clearance: Optional[str] = None) -> None:
     """403 si la petición pide scopes o un clearance por encima de lo que concede su token."""
     grant = getattr(request.state, "token_grant", None)

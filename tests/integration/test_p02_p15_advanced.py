@@ -9,6 +9,7 @@ Cubre:
 Comentarios en español.
 """
 
+import runpy, pathlib; runpy.run_path(str(pathlib.Path(__file__).resolve().parents[1] / "__init__.py"))  # aislamiento (ver tests/__init__.py), se lance como se lance
 import unittest
 from ai_os_core.infrastructure.db.connection import DatabaseManager
 from ai_os_core.infrastructure.db.migrations.runner import MigrationRunner
