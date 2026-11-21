@@ -111,10 +111,20 @@ def _health_answers(url: str) -> bool:
         return False
 
 
+def _executable_of(line: str) -> str:
+    """Nombre del ejecutable con que empieza una línea de comandos (`"c:\\a b\\x.exe" --y` -> `x.exe`)."""
+    line = line.strip()
+    first = line[1:].split('"', 1)[0] if line.startswith('"') else line.split(" ", 1)[0]
+    return first.replace("/", "\\").rsplit("\\", 1)[-1]
+
+
 def _alive(app: Dict[str, Any], lines: List[str]) -> bool:
     if app.get("health"):
         return _health_answers(app["health"])
-    return any(m in line for m in _marks(app) for line in lines)
+    # Una marca `.exe` es el proceso de la app, no cualquier línea que la mencione: un shell o un
+    # editor con «cauce.exe» en su orden hacía creer que la app estaba abierta y no dejaba arrancarla
+    return any((_executable_of(line) == m) if m.endswith(".exe") else (m in line)
+               for m in _marks(app) for line in lines)
 
 
 def statuses() -> Dict[str, Any]:

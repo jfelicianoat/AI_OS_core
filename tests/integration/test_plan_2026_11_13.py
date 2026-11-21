@@ -202,6 +202,17 @@ class TestAos05PararSoloSusProcesos(unittest.TestCase):
         self.assertTrue(f("chatygpt.exe", "...", ["chatygpt.exe"]))
         self.assertFalse(f("explorer.exe", "explorer d:\\chatygpt.exe", ["chatygpt.exe"]))
 
+    def test_en_marcha_solo_si_el_ejecutable_es_el_de_la_app(self):
+        # 0.5.0: un shell con «cauce.exe» en su orden no es Cauce abierto (no dejaba arrancarlo)
+        app = {"id": "cauce", "match": ["cauce.exe"]}
+        alive = launcher._alive
+        self.assertFalse(alive(app, ['"c:\\program files\\git\\bin\\bash.exe" -c "get-process cauce.exe"']))
+        self.assertFalse(alive(app, ["powershell.exe -command stop-process -name cauce.exe"]))
+        self.assertTrue(alive(app, ['"d:\\desarrollo\\gstor de ideas y desarrollos\\src-tauri\\target\\release\\cauce.exe"']))
+        self.assertTrue(alive(app, ["cauce.exe --flag"]))
+        # Las marcas que no son ejecutables siguen buscándose en la línea
+        self.assertTrue(alive({"id": "md", "match": ["model_drift.gui"]}, ["python -m model_drift.gui"]))
+
 
 class TestAos07CatalogoEnLaConexion(_Entorno):
 

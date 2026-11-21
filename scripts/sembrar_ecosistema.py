@@ -27,6 +27,7 @@ AMBITOS = {
     "trading_ai": "trading_ai:broker",
     "chatygpt": "chatygpt:broker",
     "gestion_favoritos": "gestion_favoritos:broker",
+    "cauce": "cauce:broker",
 }
 
 

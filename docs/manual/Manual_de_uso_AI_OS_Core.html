@@ -56,7 +56,7 @@
   <div class="meta">
     Versión del software: <b>0.5.0</b> · Fecha: 21 de noviembre de 2026 (tokens de cliente del Broker)<br>
     Verificado contra: AI Broker (contrato 2.12) en el PC IA, tablero de Agora, servicio de Athena, datos de Model_Drift y de Gestión Tareas IA<br>
-    Suite automática: 132 pruebas en verde · Recorridos E2E reales: 31 (Broker + Agora), 33 (Model_Drift + Athena + Gestión Tareas IA) y 18 (ChatyGPT + Knowledge Orchestrator + Trading AI + Local AI Lab)
+    Suite automática: 133 pruebas en verde · Recorridos E2E reales: 31 (Broker + Agora), 33 (Model_Drift + Athena + Gestión Tareas IA) y 18 (ChatyGPT + Knowledge Orchestrator + Trading AI + Local AI Lab)
   </div>
 </section>
 
@@ -158,6 +158,7 @@ python -m ai_os_core.serve</pre>
 <h3>Tokens sin pegar</h3>
 <p>Al arrancar, Core genera (una sola vez) un token para el <b>director</b> y otro para cada app, y los deja con su URL en <code>%LOCALAPPDATA%\AIOSCore\conexion\&lt;app&gt;.json</code>. Las apps de este equipo los leen de ahí; no hay que pegar nada. Un token fijado en <code>AI_OS_API_TOKEN</code> (director) o <code>AI_OS_API_TOKENS</code> manda sobre el generado. Una app nueva sólo necesita su entrada en <code>config/apps.json</code>. Si borras el fichero de una app, Core lo repone al reiniciarse. El token del AI Broker lo publica el runner de Agora y Core lo reparte a las apps que tienen política <code>&lt;app&gt;:broker</code>; se guarda sólo en memoria.</p>
 <p><b>Tokens de cliente del Broker</b> (desde 0.5.0): una app no recibe ese token de administración, sino <b>el suyo de cliente</b> (contrato 2.12, §3.2), que Core emite en el Broker con el nombre de la app la primera vez que lo pide. Solo abre las rutas de trabajo y solo sobre lo que creó esa app, y <b>no caduca cuando el Broker se reinicia</b>. Core lo guarda en <code>%LOCALAPPDATA%\AIOSCore\data\broker_client_tokens.json</code>, comprueba con <code>auth/check</code> que sigue valiendo antes de entregarlo y emite otro si el operador lo revocó. El runner de Agora y el director siguen con el de administración. La respuesta lleva <code>scope</code> (<code>client</code> o <code>admin</code>). Si Core no puede emitir (Broker antiguo, sin red, o <code>AI_OS_BROKER_URL=off</code>), entrega el de administración como antes. La URL del Broker sale de la entrada <code>ai_broker</code> de <code>config/apps.json</code>.</p>
+<p><b>Cauce</b> (gestor de ideas, desde 0.5.0) es la décima app: está en el lanzador (arrancar y parar) con su propio icono y se gobierna como las demás, con la política <code>cauce:broker</code>.</p>
 
 <h3>El monitor y el lanzador</h3>
 <p><code>http://127.0.0.1:8720/monitor</code> enseña en vivo el ecosistema: la constelación de apps alrededor de Core, el relato de cada petición («Qué está pasando») y, al pulsar una, su recorrido completo con la política aplicada, la clasificación del dato, el modelo, los tiempos y el recibo. Un flujo con más de 300 pasos se dibuja sólo en su tramo final, avisándolo. Si la página pide un token, usa el del director (<code>conexion\director.json</code>); el de una app sirve para mirar, no para arrancar, parar ni cambiar turnos.</p>

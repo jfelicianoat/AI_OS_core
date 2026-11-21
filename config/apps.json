@@ -189,6 +189,25 @@
         "GESTION_FAVORITOS_CORE_TOKEN": "{token}"
       },
       "note": "Interfaz web en http://127.0.0.1:8790/ (se abre sola al arrancar)."
+    },
+    {
+      "id": "cauce",
+      "name": "Cauce (gestor de ideas)",
+      "match": [
+        "cauce.exe"
+      ],
+      "start": [
+        "D:\\Desarrollo\\Gstor de ideas y desarrollos\\Cauce.bat"
+      ],
+      "cwd": "D:\\Desarrollo\\Gstor de ideas y desarrollos",
+      "uses": [
+        "ai_broker"
+      ],
+      "note": "Toma sola la URL y el token de Core (carpeta de conexión); el token de cliente del Broker se lo da Core.",
+      "env": {
+        "CAUCE_CORE_URL": "{core_url}",
+        "CAUCE_CORE_TOKEN": "{token}"
+      }
     }
   ]
 }

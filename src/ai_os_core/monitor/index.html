@@ -53,6 +53,8 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:0}
 .node .halo{fill:rgba(11,14,19,.72);stroke:var(--line);stroke-width:1.5;transition:stroke .3s,filter .3s}
 .node .ico{color:var(--muted);transition:color .3s}
 .node text{fill:var(--muted);font:600 13px var(--body);text-anchor:middle;paint-order:stroke;stroke:rgba(5,7,10,.85);stroke-width:4px;transition:fill .3s}
+.node.up .halo{stroke:var(--c);stroke-width:2.2;filter:drop-shadow(0 0 12px var(--c))}
+.node.up .ico{color:var(--c)} .node.up text{fill:var(--c)}
 .node.active .halo{stroke:var(--fg);filter:drop-shadow(0 0 10px rgba(230,233,239,.35))}
 .node.active .ico,.node.active text{color:var(--fg);fill:var(--fg)}
 .node.unknown .halo{stroke:var(--deny)} .node.unknown .ico{color:var(--deny)} .node.unknown text{fill:var(--deny)}
@@ -226,8 +228,13 @@ const NS = "http://www.w3.org/2000/svg";
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const NAMES = {core:"AI OS Core", ai_broker:"AI Broker", broker:"AI Broker", chatygpt:"ChatyGPT", athena:"Athena", agora:"Agora",
   gestion_tareas:"Gestión Tareas IA", model_drift:"Model_Drift", knowledge_orchestrator:"Knowledge Orch.", local_ai_lab:"Local AI Lab",
-  trading_ai:"Trading AI", gestion_favoritos:"Gestión Favoritos"};
+  trading_ai:"Trading AI", gestion_favoritos:"Gestión Favoritos", cauce:"Cauce", agora_desktop:"Agora (ventana)"};
 const BROKERS = new Set(["ai_broker", "broker"]);
+// Color propio de cada app: su nodo se enciende con él cuando está en marcha (como Core y el Broker)
+const APP_COLORS = {agora:"#ff8a3d", agora_desktop:"#ffb27a", gestion_tareas:"#3fcf8e", athena:"#5b7cff",
+  chatygpt:"#45d4c8", knowledge_orchestrator:"#e86bb0", local_ai_lab:"#a3d94a", model_drift:"#4fc3f7",
+  trading_ai:"#ffe066", gestion_favoritos:"#d19a66", cauce:"#e2704e"};
+const appColor = id => APP_COLORS[id] || `hsl(${[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7)} 70% 62%)`;
 const name = id => NAMES[id] || id;
 const $ = id => document.getElementById(id);
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
@@ -318,6 +325,7 @@ function addApp(id, known, animate) {
   if (apps.has(id)) { const a = apps.get(id); if (known && !a.known) { a.known = true; a.g.classList.remove("unknown"); a.label.textContent = name(id); a.g.querySelector("title").textContent = name(id); a.ico.replaceChildren(); putIcon(a.ico, id, a.R * 1.25, -a.R * .625, -a.R * .625); } return; }
   const isCore = id === "core", isBroker = BROKERS.has(id), R = isCore ? 46 : 32;
   const g = el("g", {class: "node" + (isCore ? " core" : "") + (isBroker ? " broker" : "") + (known ? "" : " unknown")}, gNodes);
+  if (!isCore && !isBroker) g.style.setProperty("--c", appColor(id));
   const inner = el("g", {class: animate ? "enter" : ""}, g);
   el("circle", {class: "halo", r: R}, inner);
   const ico = el("g", {class: "ico"}, inner);
@@ -679,6 +687,7 @@ async function refreshLauncher() {
     if (!NAMES[a.id]) NAMES[a.id] = a.name;  // el catálogo pone nombre a las apps que el monitor no conoce
     if (!apps.has(a.id)) addApp(a.id, true, true); else addApp(a.id, true, false);  // estar en el catálogo es estar registrada
     apps.get(a.id).g.classList.toggle("down", !a.running);
+    apps.get(a.id).g.classList.toggle("up", a.running && !BROKERS.has(a.id));
     if (a.running) { starting.delete(a.id); if (!stopping.has(a.id)) launchError.delete(a.id); }
     else { stopping.delete(a.id); if (confirming === a.id) confirming = null; }
   }
